@@ -1,20 +1,29 @@
-import { PageFrame } from '../components/PageFrame'
+import { observer } from 'mobx-react-lite'
 
-export function TagManagementPage(): JSX.Element {
+import { PageFrame } from '../components/PageFrame'
+import { useViewModels } from '../viewmodels/ViewModelContext'
+
+export const TagManagementPage = observer(() => {
+  const { app } = useViewModels()
+
   return (
-    <PageFrame title="Tag Management" description="Tag definitions and polling are reserved for a later change.">
-      <div className="module-table" role="table" aria-label="Tag management frame">
+    <PageFrame
+      title={app.t('navigation.tagManagement')}
+      description={app.t('tag.description')}
+      eyebrow={app.t('common.moduleFrame')}
+    >
+      <div className="module-table" role="table" aria-label={app.t('tag.table.aria')}>
         <div role="row" className="module-table-header">
-          <span role="columnheader">Tag</span>
-          <span role="columnheader">Address</span>
-          <span role="columnheader">Quality</span>
+          <span role="columnheader">{app.t('tag.table.tag')}</span>
+          <span role="columnheader">{app.t('tag.table.address')}</span>
+          <span role="columnheader">{app.t('tag.table.quality')}</span>
         </div>
         <div role="row" className="module-table-row">
-          <span role="cell">Reserved</span>
-          <span role="cell">Not mapped</span>
-          <span role="cell">No polling</span>
+          <span role="cell">{app.t('device.table.reserved')}</span>
+          <span role="cell">{app.t('tag.table.notMapped')}</span>
+          <span role="cell">{app.t('tag.table.noPolling')}</span>
         </div>
       </div>
     </PageFrame>
   )
-}
+})

@@ -3,14 +3,20 @@ import { useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
 
 import { useViewModels } from '../viewmodels/ViewModelContext'
+import { HelpPanel } from './HelpPanel'
 import { Navigation } from './Navigation'
 
 export const AppLayout = observer(({ children }: PropsWithChildren) => {
-  const { app } = useViewModels()
+  const { app, updates } = useViewModels()
 
   useEffect(() => {
     void app.loadAppInfo()
-  }, [app])
+    updates.initialize()
+
+    return () => {
+      updates.dispose()
+    }
+  }, [app, updates])
 
   return (
     <div className="app-shell">
@@ -19,7 +25,7 @@ export const AppLayout = observer(({ children }: PropsWithChildren) => {
           <span className="brand-mark">IH</span>
           <div>
             <strong>{app.appName}</strong>
-            <span>Foundation</span>
+            <span>{app.t('brand.foundation')}</span>
           </div>
         </div>
         <Navigation />
@@ -28,13 +34,16 @@ export const AppLayout = observer(({ children }: PropsWithChildren) => {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <span className="eyebrow">Industrial HMI</span>
+            <span className="eyebrow">{app.t('app.eyebrow')}</span>
             <h1>{app.activePageTitle}</h1>
           </div>
-          <div className="runtime-status">
-            <span className="status-dot" />
-            <span>{app.environmentLabel}</span>
-            <span>{app.appVersion}</span>
+          <div className="topbar-actions">
+            <HelpPanel />
+            <div className="runtime-status">
+              <span className="status-dot" />
+              <span>{app.environmentLabel}</span>
+              <span>{app.appVersion}</span>
+            </div>
           </div>
         </header>
 

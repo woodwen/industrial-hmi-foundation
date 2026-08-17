@@ -15,17 +15,18 @@ const nodeBuiltinImportPaths = Array.from(
 
 export default [
   {
-    ignores: ['node_modules/**', 'out/**', 'dist/**', 'coverage/**']
+    ignores: ['node_modules/**', 'out/**', 'dist/**', 'release/**', 'coverage/**']
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['scripts/**/*.mjs', 'eslint.config.mjs'],
+    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', 'eslint.config.mjs'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: {
-        ...globals.node
+        ...globals.node,
+        ...globals.vitest
       }
     }
   },

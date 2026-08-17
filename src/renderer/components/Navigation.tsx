@@ -16,7 +16,7 @@ export const Navigation = observer(() => {
           onClick={() => app.navigate(page.id)}
         >
           <span className="nav-code">{page.shortLabel}</span>
-          <span>{page.title}</span>
+          <span>{app.getPageTitle(page.id)}</span>
         </button>
       ))}
     </nav>

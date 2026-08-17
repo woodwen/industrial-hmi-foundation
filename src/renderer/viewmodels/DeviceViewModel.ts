@@ -1,9 +1,11 @@
 import { makeAutoObservable } from 'mobx'
 
+import type { MessageKey } from '../localization/messages'
+
 export class DeviceViewModel {
-  description = 'Device management frame for future industrial communication adapters.'
-  connectionStateLabel = 'No device connections configured'
-  emptyStateMessage = 'Modbus TCP, OPC UA, and simulator connections are intentionally not implemented in this change.'
+  descriptionKey: MessageKey = 'device.description'
+  connectionStateKey: MessageKey = 'device.connection.title'
+  emptyStateKey: MessageKey = 'device.connection.empty'
 
   constructor() {
     makeAutoObservable(this)

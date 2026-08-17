@@ -8,13 +8,13 @@ describe('Foundation ViewModels', () => {
     const viewModel = new DashboardViewModel()
 
     expect(viewModel.summaryCards).toHaveLength(3)
-    expect(viewModel.realtimeStateLabel).toContain('not configured')
+    expect(viewModel.realtimeStateKey).toBe('dashboard.realtime.state')
   })
 
   it('provides device frame state without real connections', () => {
     const viewModel = new DeviceViewModel()
 
-    expect(viewModel.connectionStateLabel).toBe('No device connections configured')
-    expect(viewModel.emptyStateMessage).toContain('intentionally not implemented')
+    expect(viewModel.connectionStateKey).toBe('device.connection.title')
+    expect(viewModel.emptyStateKey).toBe('device.connection.empty')
   })
 })
