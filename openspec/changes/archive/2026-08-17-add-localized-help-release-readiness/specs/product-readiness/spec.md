@@ -91,6 +91,11 @@
 - **THEN** Renderer SHALL 通过 typed `window.hmi` API 请求 Main 执行更新检查
 - **AND** Renderer SHALL 展示 checking、available、not-available、manual-download 或 error 状态
 
+#### Scenario: 启动时不默认自动检查
+- **WHEN** 应用启动且没有显式启用启动检查更新设置
+- **THEN** 系统 SHALL NOT 自动发起更新检查
+- **AND** 用户 SHALL 仍可通过 Help 入口手动检查更新
+
 #### Scenario: 开发环境检查更新
 - **WHEN** 应用运行在开发环境且用户检查更新
 - **THEN** 系统 SHALL NOT 发起真实远端更新检查
@@ -118,7 +123,7 @@
 项目 SHALL 提供参考 StockMonitor 但适配本项目 npm 工具链的 GitHub 自动打包发布流程。
 
 #### Scenario: 发布 workflow 触发
-- **WHEN** 维护者向配置的发布分支推送版本变更
+- **WHEN** 维护者向 `master` 分支推送版本变更
 - **THEN** GitHub Actions SHALL 检查当前 `package.json` version 是否高于最新稳定 GitHub Release
 - **AND** 只有需要发布时才继续验证、打包和创建 release
 
@@ -136,10 +141,15 @@
 - **WHEN** 所有平台打包成功
 - **THEN** workflow SHALL 从 `CHANGELOG.md` 提取 release notes
 - **AND** workflow SHALL 创建 `v<version>` GitHub Release 并附加所有 release artifacts
+- **AND** workflow SHALL NOT 默认发布 GitHub Packages
 
 #### Scenario: 项目身份配置
 - **WHEN** Electron Builder publish 配置被实现
-- **THEN** `appId`、`productName`、artifact 名称、GitHub owner/repo 和 Linux executable name SHALL 使用本项目身份
+- **THEN** `appId` SHALL be `com.industrialhmi.foundation`
+- **AND** `productName` SHALL be `Industrial HMI Foundation`
+- **AND** artifact 名称 SHALL be `Industrial-HMI-Foundation-${version}-${arch}.${ext}`
+- **AND** Linux executable name SHALL be `industrial-hmi-foundation`
+- **AND** GitHub owner/repo SHALL 使用本项目 remote 或显式项目配置
 - **AND** 配置 SHALL NOT 泄漏 StockMonitor 的包名、owner/repo、产品名或股票领域文案
 
 ### Requirement: Product Readiness Verification
@@ -155,7 +165,7 @@
 
 #### Scenario: 更新和发布测试
 - **WHEN** 测试运行
-- **THEN** 测试 SHALL 覆盖 update manager 状态、typed update bridge、changelog parser、release notes 脚本、Electron Builder publish 配置和 GitHub workflow artifacts
+- **THEN** 测试 SHALL 覆盖 update manager 状态、typed update bridge、changelog parser、release notes 脚本、Electron Builder publish 配置、`master` workflow trigger 和 GitHub workflow artifacts
 
 ### Requirement: Industrial Business Scope Remains Deferred
 系统 SHALL 在本 change 中继续保持工业业务能力延期实现。

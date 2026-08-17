@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { registerIpcHandlers } from './ipc/register'
 import { createMainLogger } from './logging/logger'
+import { configureUpdateManager } from './update-manager'
 
 const logger = createMainLogger()
 let mainWindow: BrowserWindow | null = null
@@ -51,10 +52,12 @@ void app.whenReady().then(() => {
   }
 
   mainWindow = createMainWindow()
+  configureUpdateManager(mainWindow, logger)
 
   app.on('activate', () => {
     if (mainWindow === null || mainWindow.isDestroyed()) {
       mainWindow = createMainWindow()
+      configureUpdateManager(mainWindow, logger)
     }
   })
 })

@@ -33,6 +33,10 @@ export function parseErrorReportInput(payload: unknown, source: string): ErrorRe
   }
 }
 
+export function parseOptionalStringPayload(payload: unknown, message: string, source: string): string | undefined {
+  return parseOptionalString(payload, message, source)
+}
+
 function requireRecord(payload: unknown, message: string, source: string): Record<string, unknown> {
   if (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) {
     return payload as Record<string, unknown>

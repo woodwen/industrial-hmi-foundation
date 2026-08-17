@@ -4,11 +4,23 @@ import { toAppError } from '../../shared/app-error'
 import type { HmiResult } from '../../shared/hmi-api'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { Logger } from '../logging/logger'
-import { parseErrorReportInput, parseLogEntryInput } from './input-validation'
+import * as defaultUpdateManager from '../update-manager'
+import { parseErrorReportInput, parseLogEntryInput, parseOptionalStringPayload } from './input-validation'
 
 type Handler<TResult> = (payload: unknown) => Promise<TResult> | TResult
 
-export function registerIpcHandlers(logger: Logger): void {
+export interface UpdateManagerApi {
+  checkForUpdates(): Promise<void>
+  downloadUpdate(): Promise<void>
+  cancelUpdateDownload(): void
+  openUpdateDownloadPage(version?: string): Promise<void>
+  quitAndInstallUpdate(): void
+}
+
+export function registerIpcHandlers(
+  logger: Logger,
+  updateManager: UpdateManagerApi = defaultUpdateManager
+): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
     name: app.getName(),
     version: app.getVersion(),
@@ -43,6 +55,28 @@ export function registerIpcHandlers(logger: Logger): void {
         componentStack: error.componentStack ?? null
       }
     })
+  })
+
+  handleIpc<void>(IPC_CHANNELS.updates.checkForUpdates, logger, () => updateManager.checkForUpdates())
+
+  handleIpc<void>(IPC_CHANNELS.updates.downloadUpdate, logger, () => updateManager.downloadUpdate())
+
+  handleIpc<void>(IPC_CHANNELS.updates.cancelUpdateDownload, logger, () => {
+    updateManager.cancelUpdateDownload()
+  })
+
+  handleIpc<void>(IPC_CHANNELS.updates.openUpdateDownloadPage, logger, (payload) => {
+    const version = parseOptionalStringPayload(
+      payload,
+      'Update download page version must be a string.',
+      `ipc:${IPC_CHANNELS.updates.openUpdateDownloadPage}`
+    )
+
+    return updateManager.openUpdateDownloadPage(version)
+  })
+
+  handleIpc<void>(IPC_CHANNELS.updates.quitAndInstallUpdate, logger, () => {
+    updateManager.quitAndInstallUpdate()
   })
 }
 

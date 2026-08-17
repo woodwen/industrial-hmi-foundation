@@ -24,7 +24,28 @@ function createApiClientStub(): HmiApiClient {
     reportError: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
       ok: true,
       data: undefined
-    })
+    }),
+    checkForUpdates: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
+      ok: true,
+      data: undefined
+    }),
+    downloadUpdate: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
+      ok: true,
+      data: undefined
+    }),
+    cancelUpdateDownload: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
+      ok: true,
+      data: undefined
+    }),
+    openUpdateDownloadPage: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
+      ok: true,
+      data: undefined
+    }),
+    quitAndInstallUpdate: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
+      ok: true,
+      data: undefined
+    }),
+    onUpdateEvent: vi.fn(() => () => undefined)
   }
 }
 
@@ -33,8 +54,8 @@ describe('Renderer navigation rendering', () => {
     const rootViewModel = createRootViewModel(createApiClientStub())
     const markup = renderApp(rootViewModel)
 
-    expect(markup).toContain('Dashboard')
-    expect(markup).toContain('Realtime collection is not configured')
+    expect(markup).toContain('仪表盘')
+    expect(markup).toContain('基础架构阶段尚未配置实时采集')
   })
 
   it('renders selected device frame after active page changes', () => {
@@ -43,8 +64,8 @@ describe('Renderer navigation rendering', () => {
 
     const markup = renderApp(rootViewModel)
 
-    expect(markup).toContain('Device')
-    expect(markup).toContain('No device connections configured')
+    expect(markup).toContain('设备')
+    expect(markup).toContain('尚未配置设备连接')
   })
 })
 

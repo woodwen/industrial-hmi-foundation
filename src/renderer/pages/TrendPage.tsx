@@ -1,13 +1,22 @@
-import { PageFrame } from '../components/PageFrame'
+import { observer } from 'mobx-react-lite'
 
-export function TrendPage(): JSX.Element {
+import { PageFrame } from '../components/PageFrame'
+import { useViewModels } from '../viewmodels/ViewModelContext'
+
+export const TrendPage = observer(() => {
+  const { app } = useViewModels()
+
   return (
-    <PageFrame title="Trend" description="Trend storage and queries are reserved for a later change.">
+    <PageFrame
+      title={app.t('navigation.trend')}
+      description={app.t('trend.description')}
+      eyebrow={app.t('common.moduleFrame')}
+    >
       <div className="placeholder-panel trend-grid">
         <div className="trend-line trend-line-a" />
         <div className="trend-line trend-line-b" />
-        <p>No historian data source configured.</p>
+        <p>{app.t('trend.empty.body')}</p>
       </div>
     </PageFrame>
   )
-}
+})

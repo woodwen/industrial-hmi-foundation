@@ -1,29 +1,35 @@
 import { makeAutoObservable } from 'mobx'
 
+import type { MessageKey } from '../localization/messages'
+
 interface DashboardSummaryCard {
-  label: string
-  value: string
-  hint: string
+  id: 'devices' | 'tags' | 'alarms'
+  labelKey: MessageKey
+  valueKey: MessageKey
+  hintKey: MessageKey
 }
 
 export class DashboardViewModel {
-  description = 'Application overview frame for future live plant state.'
-  realtimeStateLabel = 'Realtime collection is not configured in this foundation change.'
+  descriptionKey: MessageKey = 'dashboard.description'
+  realtimeStateKey: MessageKey = 'dashboard.realtime.state'
   summaryCards: DashboardSummaryCard[] = [
     {
-      label: 'Devices',
-      value: 'Reserved',
-      hint: 'No live connection'
+      id: 'devices',
+      labelKey: 'dashboard.metric.devices.label',
+      valueKey: 'dashboard.metric.reserved',
+      hintKey: 'dashboard.metric.devices.hint'
     },
     {
-      label: 'Tags',
-      value: 'Reserved',
-      hint: 'No polling'
+      id: 'tags',
+      labelKey: 'dashboard.metric.tags.label',
+      valueKey: 'dashboard.metric.reserved',
+      hintKey: 'dashboard.metric.tags.hint'
     },
     {
-      label: 'Alarms',
-      value: 'Reserved',
-      hint: 'No alarm engine'
+      id: 'alarms',
+      labelKey: 'dashboard.metric.alarms.label',
+      valueKey: 'dashboard.metric.reserved',
+      hintKey: 'dashboard.metric.alarms.hint'
     }
   ]
 

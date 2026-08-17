@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "Industrial HMI foundation desktop application.",
+  "author": "woodmax",
+  "license": "MIT",
+  "homepage": "https://github.com/woodwen/industrial-hmi-foundation#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/woodwen/industrial-hmi-foundation.git"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -10,9 +17,12 @@
     "lint": "eslint .",
     "test": "vitest run",
     "build": "npm run typecheck && electron-vite build",
+    "dist": "npm run build && electron-builder",
     "smoke:start": "node scripts/smoke-start.mjs"
   },
   "dependencies": {
+    "builder-util-runtime": "9.7.0",
+    "electron-updater": "^6.8.9",
     "mobx": "^6.13.5",
     "mobx-react-lite": "^4.0.7",
     "react": "^18.3.1",
@@ -25,6 +35,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "electron": "^33.2.0",
+    "electron-builder": "^26.15.7",
     "electron-vite": "^2.3.0",
     "eslint": "^9.13.0",
     "globals": "^15.11.0",
@@ -32,5 +43,49 @@
     "typescript-eslint": "^8.12.2",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
+  },
+  "build": {
+    "appId": "com.industrialhmi.foundation",
+    "productName": "Industrial HMI Foundation",
+    "artifactName": "Industrial-HMI-Foundation-${version}-${arch}.${ext}",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "woodwen",
+        "repo": "industrial-hmi-foundation",
+        "releaseType": "release"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development",
+      "executableName": "industrial-hmi-foundation"
+    },
+    "toolsets": {
+      "appimage": "1.0.3"
+    }
   }
 }

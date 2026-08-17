@@ -1,3 +1,5 @@
+import type { MessageKey } from '../localization/messages'
+
 export type PageId =
   | 'dashboard'
   | 'device'
@@ -9,6 +11,6 @@ export type PageId =
 
 export interface PageDefinition {
   id: PageId
-  title: string
+  titleKey: MessageKey
   shortLabel: string
 }

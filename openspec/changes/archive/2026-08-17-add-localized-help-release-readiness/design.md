@@ -33,7 +33,7 @@
 - 新增 `CHANGELOG.md`，作为应用内版本更新说明和 GitHub Release notes 的单一来源。
 - 在 Help 中新增使用说明书和版本更新说明，内容可离线阅读。
 - 在 Help 中新增检查更新入口，展示 checking、available、manual-download、not-available、downloading、downloaded、cancelled 和 error 等状态。
-- 新增 GitHub Releases 更新源和跨平台自动打包 workflow。
+- 新增 GitHub Releases 更新源和跨平台自动打包 workflow，默认由 `master` 分支触发。
 - 为文档、帮助、更新和发布脚本补充可执行测试。
 
 **Non-Goals:**
@@ -73,10 +73,10 @@ Renderer 新增 `localization` 或等价模块，定义稳定的 `LanguageCode =
 
 ### 3. Help 用户入口
 
-当前应用没有成熟 Help 菜单和帮助页面。本 change 应在现有 App shell 中提供 Help 入口，入口形态可以是顶部工具按钮、Settings 页分组或 Main 菜单触发 Renderer action。默认建议：
+当前应用没有成熟 Help 菜单和帮助页面。本 change 应在现有 App shell 中提供 Help 入口，入口形态默认采用 Renderer app shell 工具入口：
 
 - Renderer shell 中增加 Help 工具入口，提供 `使用说明书`、`版本更新说明`、`检查更新`。
-- 如果实现 Main menu，则 menu command 必须走 typed preload bridge，不在 Renderer 中解析任意字符串。
+- native Electron Main menu 暂不作为第一版必需项；如果后续实现 Main menu，则 menu command 必须走 typed preload bridge，不在 Renderer 中解析任意字符串。
 - 使用说明书以应用内弹窗或页面形式展示，不依赖外部网络。
 - 版本更新说明从打包内置 `CHANGELOG.md` 解析，解析失败时展示空状态或可读错误，不导致应用崩溃。
 
@@ -93,6 +93,7 @@ Main 侧新增 update manager，参考 StockMonitor 的状态机，但适配 HMI
 - 对 GitHub 网络错误、release metadata 缺失、macOS 未签名自动安装限制等情况提供用户可读错误或手动下载路径。
 - macOS 未签名构建默认降级为打开 GitHub Releases 下载页，而不是承诺应用内自动安装。
 - 更新事件通过 Main -> Preload -> Renderer typed event 流传递，不暴露 raw IPC。
+- 第一版默认只提供手动检查更新入口，不默认启用启动自动检查；后续有 settings 持久化后再增加启动检查开关。
 
 Preload 扩展 `window.hmi.updates` 或等价 typed namespace，至少包含：
 
@@ -109,19 +110,23 @@ Renderer 新增 `AppUpdateViewModel` 管理状态和用户动作，更新状态 
 
 新增 GitHub Actions workflow，参考 StockMonitor 但使用本项目 npm 命令：
 
-- push 到发布分支时先运行版本检查，只有 `package.json` 版本高于 GitHub 最新稳定 release 时才发布。
+- push 到 `master` 分支时先运行版本检查，只有 `package.json` 版本高于 GitHub 最新稳定 release 时才发布。
 - validate job 运行 `npm ci`、`npm run typecheck`、`npm run lint`、`npm run test`、`node scripts/extract-changelog-release-notes.mjs --check`、`npm run build`。
 - build job 在 macOS、Windows、Linux 上运行 Electron Builder，上传 `.dmg`、`.zip`、`.exe`、`.AppImage`、`.yml`、`.yaml`、`.blockmap` 等 release artifacts。
 - publish job 根据 `CHANGELOG.md` 生成 release notes，并创建 GitHub Release。
 - release 后可选准备下一开发版本：更新 `package.json` 和 `CHANGELOG.md` 的 `Unreleased / <next version>` 区块，并提交回开发分支。
+- 默认不发布 GitHub Packages；如后续确实需要 npm package，再单独启用 package publish job。
 
 Electron Builder 配置必须包含：
 
-- 本项目实际 `appId`、`productName`、`artifactName` 和 `directories.output`。
-- GitHub publish provider，owner/repo 必须由本项目仓库确认后填写。
+- `appId`: `com.industrialhmi.foundation`。
+- `productName`: `Industrial HMI Foundation`。
+- `artifactName`: `Industrial-HMI-Foundation-${version}-${arch}.${ext}`。
+- `directories.output`: `release`。
+- GitHub publish provider 的 owner/repo 默认从当前仓库 remote 推断；如果实施时仍无法推断，则使用显式配置占位并阻止发布 workflow 误指向其他仓库。
 - macOS target 包含 `dmg` 和 `zip`，其中 `zip` 是 `electron-updater` 在 macOS 上检查/下载所需产物。
 - Windows target 至少包含 `nsis`。
-- Linux target 至少包含 `AppImage`，并使用不含 scope 或斜杠的安全 executable name。
+- Linux target 至少包含 `AppImage`，并使用 `industrial-hmi-foundation` 作为不含 scope 或斜杠的安全 executable name。
 
 ### 6. 验证策略
 
@@ -141,7 +146,7 @@ Electron Builder 配置必须包含：
 - [Risk] `CHANGELOG.md` 同时服务应用内展示和 GitHub Release notes，格式变化会影响发布 -> Mitigation：新增 parser 和 release notes 提取脚本测试。
 - [Risk] GitHub auto update 依赖仓库 owner/repo、release artifacts 和签名状态 -> Mitigation：方案中保留 owner/repo 待确认项，macOS 未签名默认手动下载，不承诺自动安装。
 - [Risk] 直接照搬 StockMonitor 会引入不匹配的 yarn、Ant Design 和股票领域文案 -> Mitigation：只复用 update/release 的流程和测试思路，UI 和文案按 HMI 项目实现。
-- [Risk] release workflow 在私有仓库或权限受限仓库中无法发布 packages -> Mitigation：发布 job 使用最小 `contents: write` 权限，是否发布 GitHub Packages 作为可选项，不作为默认必需能力。
+- [Risk] release workflow 在私有仓库或权限受限仓库中无法发布 packages -> Mitigation：默认不启用 GitHub Packages，只要求 `contents: write` 权限创建 GitHub Release。
 
 ## Migration Plan
 
@@ -152,8 +157,11 @@ Electron Builder 配置必须包含：
 3. 然后补 Main/Preload 更新检查 API 和 Renderer 更新状态。
 4. 最后补 Electron Builder 配置、GitHub Actions、发布脚本和测试。
 
-## Open Questions
+## Resolved Decisions
 
-- GitHub Releases 的 owner/repo 需要确认。默认建议从当前仓库 remote 推断；若当前目录没有 git remote，则先使用占位配置并在实施前要求确认。
-- 默认发布分支需要确认。默认建议使用 `main`；如果项目实际使用 `master` 或 `dev -> master` 发版流，应在实施前同步到 workflow。
-- macOS 是否需要签名和公证需要确认。默认建议本 change 先按未签名构建处理，应用内更新降级到打开下载页。
+- GitHub Release 触发分支使用 `master`。
+- GitHub owner/repo 默认从当前仓库 remote 推断；如果实施时无法推断，则不得回退到 StockMonitor 配置。
+- 应用身份默认使用 `Industrial HMI Foundation`、`com.industrialhmi.foundation`、`Industrial-HMI-Foundation-${version}-${arch}.${ext}` 和 `industrial-hmi-foundation`。
+- macOS 本 change 先按未签名构建处理，应用内更新降级到打开 GitHub Releases 下载页手动安装。
+- 检查更新第一版只提供手动入口，不默认启用启动自动检查。
+- GitHub Packages 默认不启用，只发布 GitHub Releases 和安装包 artifacts。

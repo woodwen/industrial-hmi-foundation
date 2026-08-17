@@ -1,22 +1,31 @@
-import { PageFrame } from '../components/PageFrame'
+import { observer } from 'mobx-react-lite'
 
-export function SettingsPage(): JSX.Element {
+import { PageFrame } from '../components/PageFrame'
+import { useViewModels } from '../viewmodels/ViewModelContext'
+
+export const SettingsPage = observer(() => {
+  const { app } = useViewModels()
+
   return (
-    <PageFrame title="Settings" description="Application settings frame for future desktop configuration.">
+    <PageFrame
+      title={app.t('navigation.settings')}
+      description={app.t('settings.description')}
+      eyebrow={app.t('common.moduleFrame')}
+    >
       <div className="settings-list">
         <label>
-          <span>Application logs</span>
+          <span>{app.t('settings.applicationLogs')}</span>
           <input type="checkbox" checked readOnly />
         </label>
         <label>
-          <span>Communication logs</span>
+          <span>{app.t('settings.communicationLogs')}</span>
           <input type="checkbox" checked readOnly />
         </label>
         <label>
-          <span>Error reporting</span>
+          <span>{app.t('settings.errorReporting')}</span>
           <input type="checkbox" checked readOnly />
         </label>
       </div>
     </PageFrame>
   )
-}
+})

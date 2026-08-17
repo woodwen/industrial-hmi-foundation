@@ -31,7 +31,8 @@ describe('AppViewModel', () => {
     const viewModel = new AppViewModel(createAppServiceStub())
 
     expect(viewModel.activePage).toBe('dashboard')
-    expect(viewModel.activePageTitle).toBe('Dashboard')
+    expect(viewModel.activePageTitle).toBe('仪表盘')
+    expect(viewModel.language).toBe('zh-CN')
   })
 
   it('updates active page through navigation action', () => {
@@ -41,10 +42,20 @@ describe('AppViewModel', () => {
     viewModel.navigate('device')
 
     expect(viewModel.activePage).toBe('device')
-    expect(viewModel.activePageTitle).toBe('Device')
+    expect(viewModel.activePageTitle).toBe('设备')
     expect(service.writeApplicationLog).toHaveBeenCalledWith('Navigation changed', {
       page: 'device'
     })
+  })
+
+  it('switches language and uses English page titles', () => {
+    const viewModel = new AppViewModel(createAppServiceStub())
+
+    viewModel.setLanguage('en-US')
+    viewModel.navigate('device')
+
+    expect(viewModel.language).toBe('en-US')
+    expect(viewModel.activePageTitle).toBe('Device')
   })
 
   it('loads app info from the application service', async () => {
@@ -54,7 +65,7 @@ describe('AppViewModel', () => {
 
     expect(viewModel.appName).toBe('Industrial HMI Foundation')
     expect(viewModel.appVersion).toBe('0.1.0')
-    expect(viewModel.environmentLabel).toBe('DEVELOPMENT')
+    expect(viewModel.environmentLabel).toBe('开发环境')
   })
 
   it('stores app info load failures as unified error state', async () => {
