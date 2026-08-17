@@ -21,6 +21,9 @@
 - 日志落地：首期 logger interface + console sink，Main 侧预留 file sink 扩展点
 - 错误模型：`{ code, message, detail?, source?, cause? }`
 - 测试框架：Vitest
+- 仓库归属：`/Users/mac/code/NodeProjects/industrial-hmi-foundation` 作为独立 git 仓库管理，不并入 `StockMonitor`
+- 版本控制：提交源码、OpenSpec artifacts、`package-lock.json` 和 `.npmrc`；不提交 `node_modules/`、`out/`、coverage 和日志文件
+- 完成策略：先确认当前独立 git 仓库状态并跑最终验证，再进入本地完成提交；OpenSpec archive 只在用户明确要求完成/归档流程时执行
 
 ## Goals / Non-Goals
 
@@ -158,6 +161,26 @@ IPC 使用面向用例的接口，而不是暴露底层通道：
 
 样式方案采用普通 CSS 或 CSS Modules。本期不引入 Tailwind 或组件库，避免基础架构 change 同时承担设计系统选型。
 
+### 8. 仓库与完成提交策略
+
+当前已确认 `/Users/mac/code/NodeProjects/industrial-hmi-foundation` 是独立 git repository，仓库根目录即该项目目录，`git diff --check` 可正常执行。默认决策是继续将该目录作为独立 git 仓库管理，而不是并入 `StockMonitor` 或其他已有项目。
+
+理由：
+
+- 项目语义独立：Industrial HMI Foundation 是一个独立 Electron 桌面项目，不属于 StockMonitor 的业务边界。
+- 工具链独立：本项目有自己的 `package.json`、`package-lock.json`、OpenSpec change、Electron/Vite 构建配置和测试结构。
+- 提交历史清晰：独立仓库能让 OpenSpec change、基础架构提交和后续工业协议 change 保持清楚边界。
+- 风险隔离：避免把 HMI 的 Electron 依赖、构建产物和 OpenSpec 目录混入无关项目。
+
+版本控制默认策略：
+
+- 提交：源码、配置、OpenSpec artifacts、`package-lock.json`、`.npmrc`。
+- 不提交：`node_modules/`、`out/`、`dist/`、coverage、日志文件和系统临时文件。
+- 提交前验证：`openspec validate industrial-hmi-foundation --strict`、`openspec validate --all --strict`、`git diff --check`、`npm run typecheck`、`npm run lint`、`npm run test`、`npm run build`。
+- 可选人工验收：`npm run dev` 打开桌面应用，目视检查页面导航和基础布局。
+
+OpenSpec archive 默认不在 review 或普通更新动作中执行。后续如果用户明确要求“完成提交”或“归档”，再按当时的 OpenSpec workflow 执行 archive、最终验证和本地提交。
+
 ## Risks / Trade-offs
 
 - [Risk] 初期只建立边界和占位目录，业务功能不可演示真实工业流程 -> Mitigation：页面明确保留骨架状态，tasks 中把非目标列为验收检查，后续以独立 change 增量实现协议和业务能力。
@@ -166,10 +189,12 @@ IPC 使用面向用例的接口，而不是暴露底层通道：
 - [Risk] 日志基础设施过早绑定具体日志库会限制桌面打包和文件路径策略 -> Mitigation：先定义 logger 接口、日志类别和默认 console sink，Main 侧只预留 file sink 扩展点，真实持久化策略后续再收敛。
 - [Risk] 不引入 React Router 会让页面深链和刷新恢复暂时不可用 -> Mitigation：本期页面切换只服务桌面壳验证，后续页面需要深链时再单独引入路由。
 - [Risk] 不引入 Tailwind 或组件库会增加少量基础样式工作 -> Mitigation：本期 UI 范围很小，普通 CSS/CSS Modules 足够支撑工业控制台骨架。
+- [Risk] 完成提交前若仓库根目录或 git 状态异常，`git diff --check` 或本地提交可能失败 -> Mitigation：继续将当前目录作为独立 git 仓库管理，并在提交前重新运行全部 OpenSpec、git diff 和项目验证。
+- [Risk] 若误并入其他项目仓库，会污染无关项目依赖、构建脚本和 OpenSpec 历史 -> Mitigation：默认不并入 `StockMonitor`，保持独立仓库和独立提交历史。
 
 ## Migration Plan
 
-这是基础架构 change，不涉及生产数据迁移。实施时应先创建构建工具和进程入口，再补 Renderer MVVM 和页面导航，最后补日志、错误处理、测试和验证脚本。若实施中发现工具链不适合，可回退到已生成的 OpenSpec 方案，调整 design/tasks 后再继续。
+这是基础架构 change，不涉及生产数据迁移。实施时应先创建构建工具和进程入口，再补 Renderer MVVM 和页面导航，最后补日志、错误处理、测试和验证脚本。完成提交前应先将当前目录确认为独立 git 仓库，重新运行最终验证，再创建本地提交。若实施中发现工具链或仓库策略不适合，可回退到已生成的 OpenSpec 方案，调整 design/tasks 后再继续。
 
 ## Open Questions
 

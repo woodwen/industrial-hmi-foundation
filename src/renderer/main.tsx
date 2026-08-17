@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { App } from './App'
-import { ErrorBoundary } from './components/ErrorBoundary'
+import { ViewModelErrorBoundary } from './components/ErrorBoundary'
 import { ViewModelProvider } from './viewmodels/ViewModelContext'
 import './styles.css'
 
@@ -15,9 +15,9 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <React.StrictMode>
     <ViewModelProvider>
-      <ErrorBoundary>
+      <ViewModelErrorBoundary>
         <App />
-      </ErrorBoundary>
+      </ViewModelErrorBoundary>
     </ViewModelProvider>
   </React.StrictMode>
 )

@@ -67,3 +67,12 @@
 - [x] 8.3 Confirm no PLC Simulator, Tag Polling, Alarm processing, Historian storage, or Recipe execution is included in this change.
 - [x] 8.4 Confirm all industrial business pages remain structural placeholders only.
 - [x] 8.5 Confirm React Router, Tailwind, and component library dependencies are not introduced in this change.
+
+## 9. Completion Readiness
+
+- [x] 9.1 Initialize or confirm `/Users/mac/code/NodeProjects/industrial-hmi-foundation` as an independent git repository before completion commit.
+- [x] 9.2 Confirm the project is not merged into `StockMonitor` or another unrelated repository by default.
+- [x] 9.3 Confirm `package-lock.json` and `.npmrc` are tracked candidates, while `node_modules/`, `out/`, build outputs, coverage, logs, and system temporary files remain ignored.
+- [x] 9.4 Re-run `openspec validate industrial-hmi-foundation --strict`, `openspec validate --all --strict`, `git diff --check`, `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build` after git repository setup.
+- [x] 9.5 Record optional `npm run dev` manual page navigation inspection as deferred for a human review session; automated completion uses build, tests, and smoke start verification.
+- [x] 9.6 Keep OpenSpec archive deferred until the user explicitly requests a completion or archive workflow.

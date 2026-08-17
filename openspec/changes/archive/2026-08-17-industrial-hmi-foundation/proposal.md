@@ -18,6 +18,9 @@
 - 建立统一日志基础设施，覆盖 application log、communication log、error log；本期默认先提供接口和 console sink，文件落盘后续扩展。
 - 建立统一错误处理机制，默认错误 shape 包含 `code`、`message`、`detail`、`source`、`cause`。
 - 建立基于 Vitest 的基础测试结构，支持后续单元测试、集成测试和架构边界测试。
+- 明确完成提交前置策略：本项目默认作为独立 git 仓库管理，不并入 `StockMonitor` 或其他既有仓库。
+- 明确版本控制默认策略：提交 `package-lock.json` 和 `.npmrc`，不提交 `node_modules/`、`out/` 等生成物。
+- 明确 OpenSpec archive 默认策略：review 或普通更新流程不 archive；archive 只在用户明确进入完成/归档流程时执行。
 - 本期仅提供基础工程框架和导航，不实现真实工业业务。
 
 ## Capabilities
@@ -34,4 +37,5 @@
 - 影响 Renderer 状态管理、页面导航、ViewModel 基础模式和类型声明。
 - 影响 IPC 暴露方式、主进程服务边界、日志和错误处理基础设施。
 - 影响项目脚本、测试框架、样式组织和基础依赖选择。
+- 影响后续完成提交流程：需要先确认当前独立 git 仓库状态，随后再执行最终验证、提交和归档流程。
 - 为后续 Modbus TCP、OPC UA、SQLite、Tag Polling、Alarm、Historian、Recipe 等能力提供扩展基础，但本 change 不实现这些业务能力。

@@ -177,6 +177,29 @@ The system SHALL provide a basic test structure for TypeScript compilation, lint
 - **WHEN** architecture boundary tests run
 - **THEN** tests SHALL verify Renderer does not directly import prohibited Node.js, TCP, industrial protocol, or SQLite capabilities
 
+### Requirement: Repository Completion Readiness
+The system SHALL define repository and completion-readiness rules for finalizing this foundation change.
+
+#### Scenario: Independent repository is used
+- **WHEN** maintainers prepare the foundation project for local completion commit
+- **THEN** `/Users/mac/code/NodeProjects/industrial-hmi-foundation` SHALL be treated as an independent git repository
+- **AND** the project SHALL NOT be merged into `StockMonitor` or another unrelated project repository by default
+
+#### Scenario: Tracked files are explicit
+- **WHEN** maintainers prepare files for commit
+- **THEN** source files, OpenSpec artifacts, project configuration, `package-lock.json`, and `.npmrc` SHALL be eligible for tracking
+- **AND** `node_modules/`, `out/`, build outputs, coverage, logs, and system temporary files SHALL remain excluded
+
+#### Scenario: Final validation includes git diff check
+- **WHEN** the project has a git repository and maintainers prepare a local completion commit
+- **THEN** `git diff --check` SHALL be run with the OpenSpec and project validation commands
+- **AND** a failure or unavailable git repository SHALL be reported before completing the commit
+
+#### Scenario: Archive remains explicit
+- **WHEN** this change is only being updated or reviewed
+- **THEN** OpenSpec archive SHALL NOT be performed automatically
+- **AND** archive SHALL require an explicit completion or archive workflow request
+
 ### Requirement: Deferred Industrial Business Scope
 The system SHALL explicitly defer real industrial business capabilities from this foundation change.
 

@@ -1,6 +1,17 @@
+import { builtinModules } from 'node:module'
+
 import js from '@eslint/js'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
+
+const nodeBuiltinImportPaths = Array.from(
+  new Set(
+    builtinModules.flatMap((moduleName) => {
+      const normalizedName = moduleName.replace(/^node:/, '')
+      return [normalizedName, `node:${normalizedName}`]
+    })
+  )
+)
 
 export default [
   {
@@ -44,13 +55,8 @@ export default [
         'error',
         {
           paths: [
+            ...nodeBuiltinImportPaths,
             'electron',
-            'fs',
-            'node:fs',
-            'path',
-            'node:path',
-            'net',
-            'node:net',
             'sqlite3',
             'better-sqlite3',
             'modbus-serial',
@@ -58,6 +64,16 @@ export default [
           ],
           patterns: ['../main/*', '../../main/*', '../../../main/*']
         }
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'process', message: 'Renderer code must use typed preload APIs instead of Node globals.' },
+        { name: 'Buffer', message: 'Renderer code must use typed preload APIs instead of Node globals.' },
+        { name: 'require', message: 'Renderer code must use typed preload APIs instead of Node globals.' },
+        { name: 'module', message: 'Renderer code must use typed preload APIs instead of Node globals.' },
+        { name: 'exports', message: 'Renderer code must use typed preload APIs instead of Node globals.' },
+        { name: '__dirname', message: 'Renderer code must use typed preload APIs instead of Node globals.' },
+        { name: '__filename', message: 'Renderer code must use typed preload APIs instead of Node globals.' }
       ]
     }
   }

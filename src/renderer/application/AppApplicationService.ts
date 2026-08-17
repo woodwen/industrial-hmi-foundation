@@ -1,4 +1,3 @@
-import type { AppErrorShape } from '../../shared/app-error'
 import type { AppInfo, ErrorReportInput, HmiResult, LogEntryInput } from '../../shared/hmi-api'
 
 export interface HmiApiClient {
@@ -24,7 +23,7 @@ export class AppApplicationService {
     })
   }
 
-  reportError(error: AppErrorShape): Promise<HmiResult<void>> {
+  reportError(error: ErrorReportInput): Promise<HmiResult<void>> {
     return this.apiClient.reportError(error)
   }
 }

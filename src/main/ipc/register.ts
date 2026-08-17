@@ -1,11 +1,12 @@
 import { app, ipcMain } from 'electron'
 
 import { toAppError } from '../../shared/app-error'
-import type { ErrorReportInput, HmiResult, LogEntryInput } from '../../shared/hmi-api'
+import type { HmiResult } from '../../shared/hmi-api'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { Logger } from '../logging/logger'
+import { parseErrorReportInput, parseLogEntryInput } from './input-validation'
 
-type Handler<TPayload, TResult> = (payload: TPayload) => Promise<TResult> | TResult
+type Handler<TResult> = (payload: unknown) => Promise<TResult> | TResult
 
 export function registerIpcHandlers(logger: Logger): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
@@ -18,14 +19,18 @@ export function registerIpcHandlers(logger: Logger): void {
         : 'development'
   }))
 
-  handleIpc<LogEntryInput, void>(IPC_CHANNELS.log.write, logger, (entry) => {
+  handleIpc<void>(IPC_CHANNELS.log.write, logger, (payload) => {
+    const entry = parseLogEntryInput(payload, `ipc:${IPC_CHANNELS.log.write}`)
+
     logger.write({
       ...entry,
       source: entry.source ?? 'renderer'
     })
   })
 
-  handleIpc<ErrorReportInput, void>(IPC_CHANNELS.errors.report, logger, (error) => {
+  handleIpc<void>(IPC_CHANNELS.errors.report, logger, (payload) => {
+    const error = parseErrorReportInput(payload, `ipc:${IPC_CHANNELS.errors.report}`)
+
     logger.write({
       category: 'error',
       level: 'error',
@@ -41,12 +46,12 @@ export function registerIpcHandlers(logger: Logger): void {
   })
 }
 
-function handleIpc<TPayload, TResult>(
+function handleIpc<TResult>(
   channel: string,
   logger: Logger,
-  handler: Handler<TPayload, TResult>
+  handler: Handler<TResult>
 ): void {
-  ipcMain.handle(channel, async (_event, payload: TPayload): Promise<HmiResult<TResult>> => {
+  ipcMain.handle(channel, async (_event, payload: unknown): Promise<HmiResult<TResult>> => {
     try {
       const data = await handler(payload)
       return {
