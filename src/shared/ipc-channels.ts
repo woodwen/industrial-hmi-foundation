@@ -29,6 +29,29 @@ export const IPC_CHANNELS = {
   commands: {
     execute: 'hmi:commands:execute'
   },
+  auth: {
+    getCurrentUser: 'hmi:auth:get-current-user',
+    createFirstAdmin: 'hmi:auth:create-first-admin',
+    login: 'hmi:auth:login',
+    logout: 'hmi:auth:logout',
+    listUsers: 'hmi:auth:list-users',
+    createUser: 'hmi:auth:create-user',
+    updateUserRole: 'hmi:auth:update-user-role',
+    setUserEnabled: 'hmi:auth:set-user-enabled'
+  },
+  recipes: {
+    list: 'hmi:recipes:list',
+    getParameterDefinitions: 'hmi:recipes:get-parameter-definitions',
+    validate: 'hmi:recipes:validate',
+    create: 'hmi:recipes:create',
+    update: 'hmi:recipes:update',
+    copy: 'hmi:recipes:copy',
+    delete: 'hmi:recipes:delete',
+    download: 'hmi:recipes:download'
+  },
+  audit: {
+    query: 'hmi:audit:query'
+  },
   tags: {
     getSnapshot: 'hmi:tags:get-snapshot',
     subscribe: 'hmi:tags:subscribe',

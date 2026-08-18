@@ -5,12 +5,14 @@ export type { PageId }
 
 export const pageDefinitions: PageDefinition[] = [
   { id: 'dashboard', titleKey: 'navigation.dashboard', shortLabel: 'DB' },
-  { id: 'device', titleKey: 'navigation.device', shortLabel: 'DV' },
-  { id: 'alarm', titleKey: 'navigation.alarm', shortLabel: 'AL' },
-  { id: 'trend', titleKey: 'navigation.trend', shortLabel: 'TR' },
-  { id: 'recipe', titleKey: 'navigation.recipe', shortLabel: 'RC' },
-  { id: 'tag-management', titleKey: 'navigation.tagManagement', shortLabel: 'TG' },
-  { id: 'settings', titleKey: 'navigation.settings', shortLabel: 'ST' }
+  { id: 'device', titleKey: 'navigation.device', shortLabel: 'DV', requiredPermission: 'device:view' },
+  { id: 'alarm', titleKey: 'navigation.alarm', shortLabel: 'AL', requiredPermission: 'alarm:acknowledge' },
+  { id: 'trend', titleKey: 'navigation.trend', shortLabel: 'TR', requiredPermission: 'device:view' },
+  { id: 'recipe', titleKey: 'navigation.recipe', shortLabel: 'RC', requiredPermission: 'recipe:read' },
+  { id: 'audit-log', titleKey: 'navigation.auditLog', shortLabel: 'AU', requiredPermission: 'audit:read' },
+  { id: 'user-management', titleKey: 'navigation.userManagement', shortLabel: 'US', requiredPermission: 'user:manage' },
+  { id: 'tag-management', titleKey: 'navigation.tagManagement', shortLabel: 'TG', requiredPermission: 'tag-config:write' },
+  { id: 'settings', titleKey: 'navigation.settings', shortLabel: 'ST', requiredPermission: 'system-config:write' }
 ]
 
 export function getPageTitle(pageId: PageId, language: LanguageCode = DEFAULT_LANGUAGE): string {

@@ -39,6 +39,8 @@ export interface AlarmOccurrence {
   acknowledgeUser?: string
   conditionActive: boolean
   updatedAt: string
+  auditStatus?: 'notRequired' | 'finalized' | 'failed'
+  auditErrorSummary?: string
 }
 
 export interface AlarmSnapshot {

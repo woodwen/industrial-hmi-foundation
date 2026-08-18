@@ -9,6 +9,11 @@ import type {
   AlarmSnapshot
 } from '../../shared/alarm'
 import type {
+  AuditLogResult,
+  AuditQuery,
+  CreateFirstAdminRequest,
+  CreateUserRequest,
+  CurrentUserSnapshot,
   DeviceCommandRequest,
   DeviceCommandResult,
   DeviceReadResponse,
@@ -17,7 +22,20 @@ import type {
   DeviceStatus,
   DeviceWriteRequest,
   DeviceWriteResponse,
-  HmiResult
+  HmiResult,
+  LoginRequest,
+  RecipeDownloadRequest,
+  RecipeDownloadResult,
+  RecipeDraft,
+  RecipeDto,
+  RecipeListResult,
+  RecipeParameterDefinition,
+  RecipeValidationResult,
+  SetUserEnabledRequest,
+  UpdateRecipeRequest,
+  UpdateUserRoleRequest,
+  UserDto,
+  UserListResult
 } from '../../shared/hmi-api'
 import type { TagSnapshot } from '../../shared/tag'
 import type {
@@ -35,14 +53,24 @@ import * as defaultUpdateManager from '../update-manager'
 import {
   parseDeviceReadRequest,
   parseDeviceWriteRequest,
+  parseAuditQuery,
   parseAlarmAcknowledgeRequest,
   parseAlarmHistoryQuery,
+  parseCreateFirstAdminRequest,
+  parseCreateUserRequest,
   parseDeviceCommandRequest,
   parseErrorReportInput,
   parseHistoricalTrendQuery,
+  parseLoginRequest,
   parseLogEntryInput,
   parseOptionalStringPayload,
-  parseRealtimeTrendRequest
+  parseRecipeDownloadRequest,
+  parseRecipeDraft,
+  parseRecipeIdPayload,
+  parseRealtimeTrendRequest,
+  parseSetUserEnabledRequest,
+  parseUpdateRecipeRequest,
+  parseUpdateUserRoleRequest
 } from './input-validation'
 
 type Handler<TResult> = (payload: unknown, event: IpcMainInvokeEvent) => Promise<TResult> | TResult
@@ -67,6 +95,32 @@ export interface DeviceManagerApi {
 export interface CommandManagerApi {
   executeCommand(request: DeviceCommandRequest): Promise<DeviceCommandResult>
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse>
+}
+
+export interface AuthManagerApi {
+  getCurrentUser(): CurrentUserSnapshot
+  createFirstAdmin(request: CreateFirstAdminRequest): UserDto
+  login(request: LoginRequest): CurrentUserSnapshot
+  logout(): CurrentUserSnapshot
+  listUsers(): UserListResult
+  createUser(request: CreateUserRequest): UserDto
+  updateUserRole(request: UpdateUserRoleRequest): UserDto
+  setUserEnabled(request: SetUserEnabledRequest): UserDto
+}
+
+export interface RecipeManagerApi {
+  listRecipes(): RecipeListResult
+  getRecipeParameterDefinitions(): RecipeParameterDefinition[]
+  validateRecipe(draft: RecipeDraft): RecipeValidationResult
+  createRecipe(draft: RecipeDraft): RecipeDto
+  updateRecipe(request: UpdateRecipeRequest): RecipeDto
+  copyRecipe(recipeId: string): RecipeDto
+  deleteRecipe(recipeId: string): void
+  downloadRecipe(request: RecipeDownloadRequest): Promise<RecipeDownloadResult>
+}
+
+export interface AuditManagerApi {
+  queryAuditLog(query: AuditQuery): AuditLogResult
 }
 
 export interface TagManagerApi {
@@ -115,7 +169,10 @@ export function registerIpcHandlers(
   alarmManager: AlarmManagerApi = createDefaultAlarmManager(),
   alarmSubscription: AlarmSubscriptionApi = createNoopAlarmSubscription(),
   trendManager: TrendManagerApi = createDefaultTrendManager(),
-  trendSubscription: TrendSubscriptionApi = createNoopTrendSubscription()
+  trendSubscription: TrendSubscriptionApi = createNoopTrendSubscription(),
+  authManager: AuthManagerApi = createDefaultAuthManager(),
+  recipeManager: RecipeManagerApi = createDefaultRecipeManager(),
+  auditManager: AuditManagerApi = createDefaultAuditManager()
 ): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
     name: app.getName(),
@@ -199,6 +256,68 @@ export function registerIpcHandlers(
 
   handleIpc<DeviceCommandResult>(IPC_CHANNELS.commands.execute, logger, (payload) => (
     commandManager.executeCommand(parseDeviceCommandRequest(payload, `ipc:${IPC_CHANNELS.commands.execute}`))
+  ))
+
+  handleIpc<CurrentUserSnapshot>(IPC_CHANNELS.auth.getCurrentUser, logger, () => authManager.getCurrentUser())
+
+  handleIpc<UserDto>(IPC_CHANNELS.auth.createFirstAdmin, logger, (payload) => (
+    authManager.createFirstAdmin(parseCreateFirstAdminRequest(payload, `ipc:${IPC_CHANNELS.auth.createFirstAdmin}`))
+  ))
+
+  handleIpc<CurrentUserSnapshot>(IPC_CHANNELS.auth.login, logger, (payload) => (
+    authManager.login(parseLoginRequest(payload, `ipc:${IPC_CHANNELS.auth.login}`))
+  ))
+
+  handleIpc<CurrentUserSnapshot>(IPC_CHANNELS.auth.logout, logger, () => authManager.logout())
+
+  handleIpc<UserListResult>(IPC_CHANNELS.auth.listUsers, logger, () => authManager.listUsers())
+
+  handleIpc<UserDto>(IPC_CHANNELS.auth.createUser, logger, (payload) => (
+    authManager.createUser(parseCreateUserRequest(payload, `ipc:${IPC_CHANNELS.auth.createUser}`))
+  ))
+
+  handleIpc<UserDto>(IPC_CHANNELS.auth.updateUserRole, logger, (payload) => (
+    authManager.updateUserRole(parseUpdateUserRoleRequest(payload, `ipc:${IPC_CHANNELS.auth.updateUserRole}`))
+  ))
+
+  handleIpc<UserDto>(IPC_CHANNELS.auth.setUserEnabled, logger, (payload) => (
+    authManager.setUserEnabled(parseSetUserEnabledRequest(payload, `ipc:${IPC_CHANNELS.auth.setUserEnabled}`))
+  ))
+
+  handleIpc<RecipeListResult>(IPC_CHANNELS.recipes.list, logger, () => recipeManager.listRecipes())
+
+  handleIpc<RecipeParameterDefinition[]>(
+    IPC_CHANNELS.recipes.getParameterDefinitions,
+    logger,
+    () => recipeManager.getRecipeParameterDefinitions()
+  )
+
+  handleIpc<RecipeValidationResult>(IPC_CHANNELS.recipes.validate, logger, (payload) => (
+    recipeManager.validateRecipe(parseRecipeDraft(payload, `ipc:${IPC_CHANNELS.recipes.validate}`))
+  ))
+
+  handleIpc<RecipeDto>(IPC_CHANNELS.recipes.create, logger, (payload) => (
+    recipeManager.createRecipe(parseRecipeDraft(payload, `ipc:${IPC_CHANNELS.recipes.create}`))
+  ))
+
+  handleIpc<RecipeDto>(IPC_CHANNELS.recipes.update, logger, (payload) => (
+    recipeManager.updateRecipe(parseUpdateRecipeRequest(payload, `ipc:${IPC_CHANNELS.recipes.update}`))
+  ))
+
+  handleIpc<RecipeDto>(IPC_CHANNELS.recipes.copy, logger, (payload) => (
+    recipeManager.copyRecipe(parseRecipeIdPayload(payload, `ipc:${IPC_CHANNELS.recipes.copy}`))
+  ))
+
+  handleIpc<void>(IPC_CHANNELS.recipes.delete, logger, (payload) => {
+    recipeManager.deleteRecipe(parseRecipeIdPayload(payload, `ipc:${IPC_CHANNELS.recipes.delete}`))
+  })
+
+  handleIpc<RecipeDownloadResult>(IPC_CHANNELS.recipes.download, logger, (payload) => (
+    recipeManager.downloadRecipe(parseRecipeDownloadRequest(payload, `ipc:${IPC_CHANNELS.recipes.download}`))
+  ))
+
+  handleIpc<AuditLogResult>(IPC_CHANNELS.audit.query, logger, (payload) => (
+    auditManager.queryAuditLog(parseAuditQuery(payload, `ipc:${IPC_CHANNELS.audit.query}`))
   ))
 
   handleIpc<TagSnapshot>(IPC_CHANNELS.tags.getSnapshot, logger, () => tagManager.getTagSnapshot())
@@ -325,6 +444,89 @@ function createDefaultCommandManager(): CommandManagerApi {
     writeDeviceRegisters: () => {
       throw createNotConfiguredError()
     }
+  }
+}
+
+function createDefaultAuthManager(): AuthManagerApi {
+  const createNotConfiguredError = () => createAppError({
+    code: 'AUTH_SERVICE_NOT_CONFIGURED',
+    message: 'User service is not configured.',
+    source: 'main:ipc-register'
+  })
+
+  return {
+    getCurrentUser: () => ({
+      user: null,
+      permissions: [],
+      requiresInitialization: true
+    }),
+    createFirstAdmin: () => {
+      throw createNotConfiguredError()
+    },
+    login: () => {
+      throw createNotConfiguredError()
+    },
+    logout: () => ({
+      user: null,
+      permissions: [],
+      requiresInitialization: true
+    }),
+    listUsers: () => {
+      throw createNotConfiguredError()
+    },
+    createUser: () => {
+      throw createNotConfiguredError()
+    },
+    updateUserRole: () => {
+      throw createNotConfiguredError()
+    },
+    setUserEnabled: () => {
+      throw createNotConfiguredError()
+    }
+  }
+}
+
+function createDefaultRecipeManager(): RecipeManagerApi {
+  const createNotConfiguredError = () => createAppError({
+    code: 'RECIPE_SERVICE_NOT_CONFIGURED',
+    message: 'RecipeService is not configured.',
+    source: 'main:ipc-register'
+  })
+
+  return {
+    listRecipes: () => ({
+      recipes: [],
+      emittedAt: new Date().toISOString()
+    }),
+    getRecipeParameterDefinitions: () => [],
+    validateRecipe: () => ({
+      valid: false,
+      issues: []
+    }),
+    createRecipe: () => {
+      throw createNotConfiguredError()
+    },
+    updateRecipe: () => {
+      throw createNotConfiguredError()
+    },
+    copyRecipe: () => {
+      throw createNotConfiguredError()
+    },
+    deleteRecipe: () => {
+      throw createNotConfiguredError()
+    },
+    downloadRecipe: () => {
+      throw createNotConfiguredError()
+    }
+  }
+}
+
+function createDefaultAuditManager(): AuditManagerApi {
+  return {
+    queryAuditLog: () => ({
+      rows: [],
+      emittedAt: new Date().toISOString()
+    })
   }
 }
 

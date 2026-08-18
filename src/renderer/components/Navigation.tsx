@@ -4,11 +4,12 @@ import { pageDefinitions } from '../viewmodels/pages'
 import { useViewModels } from '../viewmodels/ViewModelContext'
 
 export const Navigation = observer(() => {
-  const { app } = useViewModels()
+  const { app, auth } = useViewModels()
+  const visiblePages = pageDefinitions.filter((page) => auth.canViewPermission(page.requiredPermission))
 
   return (
     <nav className="navigation" aria-label="Primary">
-      {pageDefinitions.map((page) => (
+      {visiblePages.map((page) => (
         <button
           key={page.id}
           type="button"

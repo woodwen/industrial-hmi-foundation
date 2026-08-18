@@ -81,6 +81,59 @@ export class HistorianDatabase {
 
       CREATE INDEX IF NOT EXISTS idx_alarm_history_status_level
         ON alarm_history (status, level, trigger_time_ms);
+
+      CREATE TABLE IF NOT EXISTS recipes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        parameters_json TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        updated_at_ms INTEGER NOT NULL,
+        deleted_at_ms INTEGER,
+        source_recipe_id TEXT,
+        source_version INTEGER
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_recipes_active_updated
+        ON recipes (deleted_at_ms, updated_at_ms);
+
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        enabled INTEGER NOT NULL,
+        credential_hash TEXT NOT NULL,
+        credential_salt TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        updated_at_ms INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_users_username
+        ON users (username);
+
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        timestamp_ms INTEGER NOT NULL,
+        user TEXT NOT NULL,
+        role TEXT,
+        action TEXT NOT NULL,
+        target TEXT NOT NULL,
+        old_value_json TEXT NOT NULL,
+        new_value_json TEXT NOT NULL,
+        result TEXT NOT NULL,
+        correlation_id TEXT,
+        duration_ms INTEGER,
+        error_summary TEXT,
+        metadata_json TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_time
+        ON audit_logs (timestamp_ms);
+
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_user_action_result
+        ON audit_logs (user, action, result, timestamp_ms);
     `)
 
     this.db

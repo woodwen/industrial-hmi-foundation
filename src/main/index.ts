@@ -54,7 +54,10 @@ void app.whenReady().then(() => {
     mainRuntime,
     mainRuntime.alarmIpcPublisher,
     mainRuntime,
-    mainRuntime.trendIpcPublisher
+    mainRuntime.trendIpcPublisher,
+    mainRuntime,
+    mainRuntime,
+    mainRuntime
   )
   logger.write({
     category: 'application',

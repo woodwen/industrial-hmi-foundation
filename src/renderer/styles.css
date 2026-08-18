@@ -17,7 +17,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -165,6 +167,33 @@ button {
   color: #344960;
   background: #ffffff;
   font-size: 13px;
+}
+
+.auth-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid #d5dee8;
+  border-radius: 6px;
+  padding: 6px;
+  background: #ffffff;
+}
+
+.auth-strip span {
+  min-width: 120px;
+  color: #344960;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-strip input {
+  width: 128px;
+  min-height: 32px;
+  border: 1px solid #c7d4e1;
+  border-radius: 6px;
+  padding: 0 9px;
+  color: #17202a;
 }
 
 .language-switch {
@@ -404,6 +433,87 @@ button {
 
 .module-table span:last-child {
   border-right: 0;
+}
+
+.data-table {
+  display: grid;
+  overflow: auto;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+}
+
+.data-table-row {
+  display: grid;
+  min-width: 720px;
+  border-bottom: 1px solid #d8e0eb;
+}
+
+.data-table-row:last-child {
+  border-bottom: 0;
+}
+
+.data-table-header {
+  color: #41576d;
+  background: #e9eff6;
+  font-weight: 700;
+}
+
+.data-table-row.is-selected {
+  background: #edf8f5;
+}
+
+.data-table-row span {
+  min-width: 0;
+  min-height: 42px;
+  border-right: 1px solid #d8e0eb;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.data-table-row span:last-child {
+  border-right: 0;
+}
+
+.data-empty-row {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.recipe-table-row {
+  grid-template-columns:
+    minmax(220px, 1.3fr)
+    minmax(80px, 0.4fr)
+    minmax(190px, 1fr)
+    minmax(112px, 0.5fr);
+}
+
+.download-step-row {
+  grid-template-columns:
+    minmax(170px, 1fr)
+    minmax(130px, 0.8fr)
+    minmax(120px, 0.7fr);
+  min-width: 420px;
+}
+
+.user-table-row {
+  grid-template-columns:
+    minmax(140px, 0.85fr)
+    minmax(160px, 1fr)
+    minmax(150px, 0.8fr)
+    minmax(88px, 0.45fr)
+    minmax(120px, 0.6fr);
+}
+
+.audit-table-row {
+  grid-template-columns:
+    minmax(190px, 0.9fr)
+    minmax(110px, 0.55fr)
+    minmax(150px, 0.75fr)
+    minmax(190px, 0.95fr)
+    minmax(112px, 0.5fr)
+    minmax(220px, 1.1fr)
+    minmax(260px, 1.35fr);
+  min-width: 1232px;
 }
 
 .device-panel {
@@ -664,6 +774,60 @@ button {
   padding: 0 10px;
   color: #17202a;
   background: #ffffff;
+}
+
+.recipe-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.recipe-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.recipe-form label:first-child,
+.recipe-form label:nth-child(2) {
+  grid-column: 1 / -1;
+}
+
+.recipe-form span {
+  color: #41576d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recipe-form input,
+.recipe-form textarea,
+.data-table select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #c7d4e1;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.recipe-form textarea {
+  min-height: 78px;
+  padding: 9px 10px;
+  resize: vertical;
+}
+
+.recipe-form small {
+  min-height: 18px;
+  color: #607589;
+  font-size: 12px;
+}
+
+.recipe-form input:disabled,
+.recipe-form textarea:disabled,
+.data-table select:disabled,
+.auth-strip input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .coil-control-list {
@@ -1139,6 +1303,17 @@ button {
     width: 100%;
   }
 
+  .auth-strip {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .auth-strip span,
+  .auth-strip input {
+    width: 100%;
+  }
+
   .help-menu {
     right: auto;
     left: 0;
@@ -1161,6 +1336,10 @@ button {
   }
 
   .command-button-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recipe-form {
     grid-template-columns: 1fr;
   }
 

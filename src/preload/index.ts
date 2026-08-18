@@ -6,6 +6,9 @@ import type {
   AlarmListener,
   AppUpdateEvent,
   AppUpdateListener,
+  AuditQuery,
+  CreateFirstAdminRequest,
+  CreateUserRequest,
   DeviceCommandRequest,
   DeviceReadRequest,
   DeviceStateChangedEvent,
@@ -14,12 +17,18 @@ import type {
   ErrorReportInput,
   HmiApi,
   HistoricalTrendQuery,
+  LoginRequest,
   LogEntryInput,
+  RecipeDownloadRequest,
+  RecipeDraft,
   RealtimeTrendChangedEvent,
   RealtimeTrendListener,
   RealtimeTrendRequest,
+  SetUserEnabledRequest,
   TagValuesChangedEvent,
-  TagValuesListener
+  TagValuesListener,
+  UpdateRecipeRequest,
+  UpdateUserRoleRequest
 } from '../shared/hmi-api'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 
@@ -84,6 +93,38 @@ const hmiApi: HmiApi = {
       IPC_CHANNELS.commands.execute,
       request
     )
+  },
+  auth: {
+    getCurrentUser: () => ipcRenderer.invoke(IPC_CHANNELS.auth.getCurrentUser),
+    createFirstAdmin: (request: CreateFirstAdminRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.auth.createFirstAdmin,
+      request
+    ),
+    login: (request: LoginRequest) => ipcRenderer.invoke(IPC_CHANNELS.auth.login, request),
+    logout: () => ipcRenderer.invoke(IPC_CHANNELS.auth.logout),
+    listUsers: () => ipcRenderer.invoke(IPC_CHANNELS.auth.listUsers),
+    createUser: (request: CreateUserRequest) => ipcRenderer.invoke(IPC_CHANNELS.auth.createUser, request),
+    updateUserRole: (request: UpdateUserRoleRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.auth.updateUserRole,
+      request
+    ),
+    setUserEnabled: (request: SetUserEnabledRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.auth.setUserEnabled,
+      request
+    )
+  },
+  recipes: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.recipes.list),
+    getParameterDefinitions: () => ipcRenderer.invoke(IPC_CHANNELS.recipes.getParameterDefinitions),
+    validate: (draft: RecipeDraft) => ipcRenderer.invoke(IPC_CHANNELS.recipes.validate, draft),
+    create: (draft: RecipeDraft) => ipcRenderer.invoke(IPC_CHANNELS.recipes.create, draft),
+    update: (request: UpdateRecipeRequest) => ipcRenderer.invoke(IPC_CHANNELS.recipes.update, request),
+    copy: (recipeId: string) => ipcRenderer.invoke(IPC_CHANNELS.recipes.copy, recipeId),
+    delete: (recipeId: string) => ipcRenderer.invoke(IPC_CHANNELS.recipes.delete, recipeId),
+    download: (request: RecipeDownloadRequest) => ipcRenderer.invoke(IPC_CHANNELS.recipes.download, request)
+  },
+  audit: {
+    query: (query: AuditQuery) => ipcRenderer.invoke(IPC_CHANNELS.audit.query, query)
   },
   tags: {
     getSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.tags.getSnapshot),

@@ -12,6 +12,7 @@
 - 新增 Tag 模型、周期采集、TagCache、Dashboard 实时监控和 Device Tag Monitor。
 - 新增设备状态机、自动重连、Tag Quality 降级/恢复、CommandService 设备控制、写入验证和 Simulator 故障注入能力。
 - 新增工业报警、SQLite 历史数据、实时趋势和历史趋势能力，支持报警确认、恢复和重启后历史查询。
+- 新增本地用户权限、工业配方管理、Recipe 下载结果明细和关键操作 Audit Log 持久化能力。
 
 ### Changed
 

@@ -8,9 +8,14 @@ import type {
   AlarmListener,
   AlarmOccurrence,
   AlarmSnapshot,
+  AuditLogResult,
+  AuditQuery,
   AppUpdateEvent,
   AppInfo,
   AppUpdateListener,
+  CreateFirstAdminRequest,
+  CreateUserRequest,
+  CurrentUserSnapshot,
   DeviceCommandRequest,
   DeviceCommandResult,
   DeviceReadRequest,
@@ -25,14 +30,27 @@ import type {
   HistoricalTrendResult,
   HmiApi,
   HmiResult,
+  LoginRequest,
   LogEntryInput,
+  RecipeDownloadRequest,
+  RecipeDownloadResult,
+  RecipeDraft,
+  RecipeDto,
+  RecipeListResult,
+  RecipeParameterDefinition,
+  RecipeValidationResult,
   RealtimeTrendChangedEvent,
   RealtimeTrendListener,
   RealtimeTrendRequest,
   RealtimeTrendSnapshot,
+  SetUserEnabledRequest,
   TagSnapshot,
   TagValuesChangedEvent,
-  TagValuesListener
+  TagValuesListener,
+  UpdateRecipeRequest,
+  UpdateUserRoleRequest,
+  UserDto,
+  UserListResult
 } from '../../src/shared/hmi-api'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 
@@ -103,6 +121,29 @@ describe('Preload HMI API contract', () => {
     expectTypeOf<HmiApi['devices']['writeRegisters']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceWriteResponse>>>()
     expectTypeOf<HmiApi['commands']['execute']>().parameters.toEqualTypeOf<[DeviceCommandRequest]>()
     expectTypeOf<HmiApi['commands']['execute']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceCommandResult>>>()
+    expectTypeOf<HmiApi['auth']['getCurrentUser']>().returns.toEqualTypeOf<Promise<HmiResult<CurrentUserSnapshot>>>()
+    expectTypeOf<HmiApi['auth']['createFirstAdmin']>().parameters.toEqualTypeOf<[CreateFirstAdminRequest]>()
+    expectTypeOf<HmiApi['auth']['createFirstAdmin']>().returns.toEqualTypeOf<Promise<HmiResult<UserDto>>>()
+    expectTypeOf<HmiApi['auth']['login']>().parameters.toEqualTypeOf<[LoginRequest]>()
+    expectTypeOf<HmiApi['auth']['login']>().returns.toEqualTypeOf<Promise<HmiResult<CurrentUserSnapshot>>>()
+    expectTypeOf<HmiApi['auth']['logout']>().returns.toEqualTypeOf<Promise<HmiResult<CurrentUserSnapshot>>>()
+    expectTypeOf<HmiApi['auth']['listUsers']>().returns.toEqualTypeOf<Promise<HmiResult<UserListResult>>>()
+    expectTypeOf<HmiApi['auth']['createUser']>().parameters.toEqualTypeOf<[CreateUserRequest]>()
+    expectTypeOf<HmiApi['auth']['updateUserRole']>().parameters.toEqualTypeOf<[UpdateUserRoleRequest]>()
+    expectTypeOf<HmiApi['auth']['setUserEnabled']>().parameters.toEqualTypeOf<[SetUserEnabledRequest]>()
+    expectTypeOf<HmiApi['recipes']['list']>().returns.toEqualTypeOf<Promise<HmiResult<RecipeListResult>>>()
+    expectTypeOf<HmiApi['recipes']['getParameterDefinitions']>().returns.toEqualTypeOf<Promise<HmiResult<RecipeParameterDefinition[]>>>()
+    expectTypeOf<HmiApi['recipes']['validate']>().parameters.toEqualTypeOf<[RecipeDraft]>()
+    expectTypeOf<HmiApi['recipes']['validate']>().returns.toEqualTypeOf<Promise<HmiResult<RecipeValidationResult>>>()
+    expectTypeOf<HmiApi['recipes']['create']>().parameters.toEqualTypeOf<[RecipeDraft]>()
+    expectTypeOf<HmiApi['recipes']['create']>().returns.toEqualTypeOf<Promise<HmiResult<RecipeDto>>>()
+    expectTypeOf<HmiApi['recipes']['update']>().parameters.toEqualTypeOf<[UpdateRecipeRequest]>()
+    expectTypeOf<HmiApi['recipes']['copy']>().parameters.toEqualTypeOf<[string]>()
+    expectTypeOf<HmiApi['recipes']['delete']>().parameters.toEqualTypeOf<[string]>()
+    expectTypeOf<HmiApi['recipes']['download']>().parameters.toEqualTypeOf<[RecipeDownloadRequest]>()
+    expectTypeOf<HmiApi['recipes']['download']>().returns.toEqualTypeOf<Promise<HmiResult<RecipeDownloadResult>>>()
+    expectTypeOf<HmiApi['audit']['query']>().parameters.toEqualTypeOf<[AuditQuery]>()
+    expectTypeOf<HmiApi['audit']['query']>().returns.toEqualTypeOf<Promise<HmiResult<AuditLogResult>>>()
     expectTypeOf<HmiApi['tags']['getSnapshot']>().returns.toEqualTypeOf<Promise<HmiResult<TagSnapshot>>>()
     expectTypeOf<HmiApi['tags']['subscribeValues']>().parameters.toEqualTypeOf<[TagValuesListener]>()
     expectTypeOf<HmiApi['tags']['subscribeValues']>().returns.toEqualTypeOf<() => void>()
@@ -148,6 +189,99 @@ describe('Preload HMI API contract', () => {
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.readRegisters, readRequest)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.writeRegisters, writeRequest)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.commands.execute, commandRequest)
+  })
+
+  it('routes auth, Recipe, and Audit methods through dedicated IPC channels', async () => {
+    await import('../../src/preload/index')
+    const hmiApi = electronMocks.exposedApis.get('hmi') as HmiApi
+    const loginRequest: LoginRequest = {
+      username: 'engineer',
+      password: 'secret'
+    }
+    const createUserRequest: CreateUserRequest = {
+      username: 'operator',
+      displayName: 'Operator',
+      role: 'Operator',
+      password: 'secret1'
+    }
+    const recipeDraft: RecipeDraft = {
+      name: 'Standard Recipe',
+      description: 'Simulator recipe',
+      parameters: {
+        targetTemperature: 60,
+        rpmSetpoint: 900,
+        mixDuration: 300,
+        feedDuration: 120
+      }
+    }
+    const updateRecipeRequest: UpdateRecipeRequest = {
+      recipeId: 'recipe-1',
+      draft: recipeDraft
+    }
+    const auditQuery: AuditQuery = {
+      action: 'Recipe Download',
+      result: 'PartialFailed'
+    }
+
+    await hmiApi.auth.getCurrentUser()
+    await hmiApi.auth.createFirstAdmin({
+      username: 'admin',
+      displayName: 'Admin',
+      password: 'secret1'
+    })
+    await hmiApi.auth.login(loginRequest)
+    await hmiApi.auth.logout()
+    await hmiApi.auth.listUsers()
+    await hmiApi.auth.createUser(createUserRequest)
+    await hmiApi.auth.updateUserRole({
+      userId: 'user-1',
+      role: 'Engineer'
+    })
+    await hmiApi.auth.setUserEnabled({
+      userId: 'user-1',
+      enabled: false
+    })
+    await hmiApi.recipes.list()
+    await hmiApi.recipes.getParameterDefinitions()
+    await hmiApi.recipes.validate(recipeDraft)
+    await hmiApi.recipes.create(recipeDraft)
+    await hmiApi.recipes.update(updateRecipeRequest)
+    await hmiApi.recipes.copy('recipe-1')
+    await hmiApi.recipes.delete('recipe-1')
+    await hmiApi.recipes.download({
+      recipeId: 'recipe-1'
+    })
+    await hmiApi.audit.query(auditQuery)
+
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.auth.getCurrentUser)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.auth.createFirstAdmin,
+      expect.objectContaining({ username: 'admin' })
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.auth.login, loginRequest)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.auth.logout)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.auth.listUsers)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.auth.createUser, createUserRequest)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.auth.updateUserRole,
+      expect.objectContaining({ role: 'Engineer' })
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.auth.setUserEnabled,
+      expect.objectContaining({ enabled: false })
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.recipes.list)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.recipes.getParameterDefinitions)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.recipes.validate, recipeDraft)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.recipes.create, recipeDraft)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.recipes.update, updateRecipeRequest)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.recipes.copy, 'recipe-1')
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.recipes.delete, 'recipe-1')
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.recipes.download,
+      expect.objectContaining({ recipeId: 'recipe-1' })
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.audit.query, auditQuery)
   })
 
   it('unsubscribes update event listeners from the preload bridge', async () => {

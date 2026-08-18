@@ -1,4 +1,5 @@
-import { UNKNOWN_ERROR_CODE, toAppError, type AppErrorShape } from '../../shared/app-error'
+import { UNKNOWN_ERROR_CODE, createAppError, toAppError, type AppErrorShape } from '../../shared/app-error'
+import type { AuditResult } from '../../shared/audit'
 import type {
   DeviceCommandId,
   DeviceCommandRequest,
@@ -6,6 +7,7 @@ import type {
   DeviceWriteRequest,
   DeviceWriteResponse
 } from '../../shared/hmi-api'
+import type { Permission, UserDto } from '../../shared/security'
 import {
   SIMULATED_MIXER_DEVICE_ID,
   decodeModbusPointValue,
@@ -20,6 +22,8 @@ import { createPointValue, encodeWritablePoint } from '../device/DeviceManager'
 import type { Logger } from '../logging/logger'
 import { createDeviceError, DEVICE_ERROR_CODES } from '../protocol/errors'
 import type { IProtocolAdapter, ProtocolReadResult } from '../protocol/types'
+import type { AuditService } from '../audit'
+import type { PermissionService } from '../security'
 
 const NORMAL_COMMAND_TIMEOUT_MS = 3000
 const FEEDBACK_COMMAND_TIMEOUT_MS = 5000
@@ -40,7 +44,17 @@ export interface CommandServiceDependencies {
   deviceManager: DeviceManager
   operationGate: DeviceOperationGate
   logger: Logger
+  permissionService?: PermissionService
+  auditService?: AuditService
+  currentUserProvider?: () => UserDto | null
+  auditValueProvider?: (pointId: ModbusPointId) => unknown
   now?: () => number
+}
+
+export interface CommandExecutionOptions {
+  user?: UserDto | null
+  suppressAudit?: boolean
+  parentAuditId?: string
 }
 
 export class CommandService {
@@ -48,9 +62,12 @@ export class CommandService {
 
   constructor(private readonly dependencies: CommandServiceDependencies) {}
 
-  executeCommand(request: DeviceCommandRequest): Promise<DeviceCommandResult> {
+  executeCommand(
+    request: DeviceCommandRequest,
+    options: CommandExecutionOptions = {}
+  ): Promise<DeviceCommandResult> {
     const definition = COMMAND_DEFINITIONS[request.commandId]
-    return this.executeDefinition(definition, request)
+    return this.executeDefinition(definition, request, options)
   }
 
   async writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse> {
@@ -79,7 +96,8 @@ export class CommandService {
 
   private async executeDefinition(
     definition: CommandDefinition | undefined,
-    request: DeviceCommandRequest
+    request: DeviceCommandRequest,
+    options: CommandExecutionOptions
   ): Promise<DeviceCommandResult> {
     const startedAt = this.now()
     if (!definition) {
@@ -94,11 +112,24 @@ export class CommandService {
       })
     }
 
-    const validation = this.validateRequest(definition, request)
-    if (validation) {
+    const user = options.user ?? this.dependencies.currentUserProvider?.() ?? null
+    const authorization = this.authorizeCommand(definition, request, user)
+    if (authorization) {
+      this.recordRejectedAudit(definition, request, user, authorization, options)
       return this.createResult(request.commandId, 'rejected', false, 'failed', startedAt, {
         targetPointId: definition.targetPointId,
-        error: validation
+        error: authorization,
+        authorizationStatus: 'rejected'
+      })
+    }
+
+    const validation = this.validateRequest(definition, request)
+    if (validation) {
+      this.recordRejectedAudit(definition, request, user, validation, options)
+      return this.createResult(request.commandId, 'rejected', false, 'failed', startedAt, {
+        targetPointId: definition.targetPointId,
+        error: validation,
+        authorizationStatus: 'authorized'
       })
     }
 
@@ -115,41 +146,56 @@ export class CommandService {
     }
 
     const value = this.resolveCommandValue(definition, request)
+    const audit = this.createPendingAudit(definition, request, user, value, options, startedAt)
+    if (audit.status === 'failed') {
+      return this.createResult(request.commandId, 'rejected', false, 'failed', startedAt, {
+        targetPointId: definition.targetPointId,
+        error: audit.error,
+        auditStatus: 'failed',
+        authorizationStatus: 'authorized'
+      })
+    }
     this.activeCommandDevices.add(SIMULATED_MIXER_DEVICE_ID)
 
+    let result: DeviceCommandResult
     try {
-      return await this.dependencies.operationGate.runExclusive(SIMULATED_MIXER_DEVICE_ID, async () => (
+      result = await this.dependencies.operationGate.runExclusive(SIMULATED_MIXER_DEVICE_ID, async () => (
         this.executeWithGate(definition, request.commandId, value, startedAt)
       ))
     } catch (error) {
       if (error instanceof DeviceOperationBusyError) {
-        return this.createResult(request.commandId, 'busy', false, 'failed', startedAt, {
+        result = this.createResult(request.commandId, 'busy', false, 'failed', startedAt, {
           targetPointId: definition.targetPointId,
           error: createDeviceError(
             DEVICE_ERROR_CODES.commandBusy,
             'Device protocol operation is busy.',
             'main:command-service',
             `deviceId=${error.deviceId}`
-          )
+          ),
+          authorizationStatus: 'authorized'
         })
+      } else {
+        const appError = toCommandProtocolError(error, 'Device command failed.')
+        this.dependencies.deviceManager.handleCommunicationFailure(appError)
+        if (isRequestTimeoutError(appError)) {
+          result = this.createResult(request.commandId, 'timeout', false, 'timeout', startedAt, {
+            targetPointId: definition.targetPointId,
+            error: createCommandTimeoutError(request.commandId, 'Device command timed out before write acceptance.'),
+            authorizationStatus: 'authorized'
+          })
+        } else {
+          result = this.createResult(request.commandId, 'failed', false, 'failed', startedAt, {
+            targetPointId: definition.targetPointId,
+            error: appError,
+            authorizationStatus: 'authorized'
+          })
+        }
       }
-
-      const appError = toCommandProtocolError(error, 'Device command failed.')
-      this.dependencies.deviceManager.handleCommunicationFailure(appError)
-      if (isRequestTimeoutError(appError)) {
-        return this.createResult(request.commandId, 'timeout', false, 'timeout', startedAt, {
-          targetPointId: definition.targetPointId,
-          error: createCommandTimeoutError(request.commandId, 'Device command timed out before write acceptance.')
-        })
-      }
-
-      return this.createResult(request.commandId, 'failed', false, 'failed', startedAt, {
-        targetPointId: definition.targetPointId,
-        error: appError
-      })
     } finally {
       this.activeCommandDevices.delete(SIMULATED_MIXER_DEVICE_ID)
     }
+
+    return this.finalizeAuditResult(audit.id, result, value)
   }
 
   private async executeWithGate(
@@ -233,6 +279,163 @@ export class CommandService {
       targetPointId: definition.targetPointId,
       point
     })
+  }
+
+  private authorizeCommand(
+    definition: CommandDefinition,
+    request: DeviceCommandRequest,
+    user: UserDto | null
+  ): AppErrorShape | null {
+    if (!this.dependencies.permissionService) {
+      return null
+    }
+
+    const permission = getCommandPermission(request.commandId)
+    try {
+      this.dependencies.permissionService.authorize(
+        user,
+        permission,
+        `${SIMULATED_MIXER_DEVICE_ID}:${definition.targetPointId}`
+      )
+      return null
+    } catch (error) {
+      return toAppError(error, 'main:command-service')
+    }
+  }
+
+  private recordRejectedAudit(
+    definition: CommandDefinition,
+    request: DeviceCommandRequest,
+    user: UserDto | null,
+    error: AppErrorShape,
+    options: CommandExecutionOptions
+  ): void {
+    if (options.suppressAudit || !this.dependencies.auditService) {
+      return
+    }
+
+    try {
+      this.dependencies.auditService.record({
+        user,
+        action: getCommandAuditAction(request.commandId),
+        target: `${SIMULATED_MIXER_DEVICE_ID}:${definition.targetPointId}`,
+        oldValue: this.getAuditOldValue(definition),
+        newValue: request.value ?? definition.fixedValue ?? null,
+        result: 'Rejected',
+        correlationId: options.parentAuditId,
+        metadata: {
+          error: error.message
+        }
+      })
+    } catch (auditError) {
+      this.dependencies.logger.write({
+        category: 'error',
+        level: 'error',
+        message: 'Failed to audit rejected command',
+        source: 'main:command-service',
+        context: {
+          commandId: request.commandId,
+          error: auditError instanceof Error ? auditError.message : String(auditError)
+        }
+      })
+    }
+  }
+
+  private createPendingAudit(
+    definition: CommandDefinition,
+    request: DeviceCommandRequest,
+    user: UserDto | null,
+    value: ModbusEngineeringValue,
+    options: CommandExecutionOptions,
+    startedAt: number
+  ): { status: 'notRequired' | 'created'; id?: string } | { status: 'failed'; error: AppErrorShape } {
+    if (options.suppressAudit || !this.dependencies.auditService) {
+      return { status: 'notRequired' }
+    }
+
+    try {
+      const record = this.dependencies.auditService.createPending({
+        user,
+        action: getCommandAuditAction(request.commandId),
+        target: `${SIMULATED_MIXER_DEVICE_ID}:${definition.targetPointId}`,
+        oldValue: this.getAuditOldValue(definition),
+        newValue: value,
+        correlationId: options.parentAuditId,
+        metadata: {
+          commandId: request.commandId,
+          startedAt
+        }
+      })
+      return {
+        status: 'created',
+        id: record.id
+      }
+    } catch (error) {
+      return {
+        status: 'failed',
+        error: createAppError({
+          code: 'AUDIT_WRITE_FAILED',
+          message: 'Command audit record could not be created.',
+          source: 'main:command-service',
+          cause: error
+        })
+      }
+    }
+  }
+
+  private getAuditOldValue(definition: CommandDefinition): unknown {
+    const auditPointId = definition.feedbackPointId ?? definition.targetPointId
+    const value = this.dependencies.auditValueProvider?.(auditPointId)
+    if (value !== undefined) {
+      return value
+    }
+
+    return {
+      source: 'main-process',
+      pointId: auditPointId,
+      value: null,
+      quality: 'Uncertain',
+      unavailable: true
+    }
+  }
+
+  private finalizeAuditResult(
+    auditId: string | undefined,
+    result: DeviceCommandResult,
+    value: ModbusEngineeringValue
+  ): DeviceCommandResult {
+    if (!auditId || !this.dependencies.auditService) {
+      return {
+        ...result,
+        auditStatus: result.auditStatus ?? 'notRequired',
+        authorizationStatus: result.authorizationStatus ?? 'authorized'
+      }
+    }
+
+    const auditResult = this.dependencies.auditService.finalize({
+      id: auditId,
+      result: toAuditResult(result),
+      newValue: {
+        requested: value,
+        verified: result.point?.value ?? null
+      },
+      durationMs: result.durationMs,
+      errorSummary: result.error?.message,
+      metadata: {
+        commandId: result.commandId,
+        writeAccepted: result.writeAccepted,
+        verificationStatus: result.verificationStatus
+      }
+    })
+
+    return {
+      ...result,
+      auditStatus: auditResult.ok ? 'finalized' : 'failed',
+      authorizationStatus: result.authorizationStatus ?? 'authorized',
+      message: auditResult.ok
+        ? result.message
+        : `${result.message} Audit finalization failed: ${auditResult.errorSummary ?? 'unknown error'}`
+    }
   }
 
   private async verifyCommand(
@@ -355,6 +558,8 @@ export class CommandService {
       targetPointId: ModbusPointId
       point?: DeviceCommandResult['point']
       error?: AppErrorShape
+      auditStatus?: DeviceCommandResult['auditStatus']
+      authorizationStatus?: DeviceCommandResult['authorizationStatus']
     }
   ): DeviceCommandResult {
     return {
@@ -368,6 +573,8 @@ export class CommandService {
       message: options.error?.message ?? `Command ${commandId} ${status}.`,
       point: options.point,
       error: options.error,
+      auditStatus: options.auditStatus,
+      authorizationStatus: options.authorizationStatus,
       timestamp: new Date().toISOString()
     }
   }
@@ -542,4 +749,53 @@ function createCommandTimeoutError(commandId: DeviceCommandId, message: string):
     'main:command-service',
     `commandId=${commandId}`
   )
+}
+
+function getCommandPermission(commandId: DeviceCommandId): Permission {
+  if (commandId === 'start' || commandId === 'stop') {
+    return 'device:start-stop'
+  }
+
+  if (commandId === 'setTargetTemperature' || commandId === 'setRpmSetpoint') {
+    return 'parameter:write'
+  }
+
+  return 'device:advanced-control'
+}
+
+function getCommandAuditAction(commandId: DeviceCommandId): string {
+  switch (commandId) {
+    case 'start':
+      return 'Start'
+    case 'stop':
+      return 'Stop'
+    case 'setTargetTemperature':
+      return 'Setpoint Change'
+    case 'setRpmSetpoint':
+      return 'RPM Setpoint Change'
+    case 'setInletValve':
+      return 'Valve Operation'
+    case 'setOutletValve':
+      return 'Valve Operation'
+    case 'motorStart':
+      return 'Motor Start'
+    case 'motorStop':
+      return 'Motor Stop'
+  }
+}
+
+function toAuditResult(result: DeviceCommandResult): AuditResult {
+  if (result.status === 'succeeded') {
+    return 'Succeeded'
+  }
+
+  if (result.status === 'timeout') {
+    return 'TimedOut'
+  }
+
+  if (result.status === 'rejected' || result.status === 'busy') {
+    return 'Rejected'
+  }
+
+  return 'Failed'
 }

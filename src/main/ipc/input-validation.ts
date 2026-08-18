@@ -1,4 +1,5 @@
 import { createAppError } from '../../shared/app-error'
+import { isAuditResult, type AuditQuery } from '../../shared/audit'
 import { isAlarmLevel, isAlarmStatus, type AlarmHistoryQuery, type AlarmAcknowledgeRequest } from '../../shared/alarm'
 import type {
   DeviceCommandId,
@@ -11,6 +12,20 @@ import type {
   LogLevel
 } from '../../shared/hmi-api'
 import { isModbusPointId, type ModbusEngineeringValue, type ModbusPointId } from '../../shared/modbus'
+import {
+  isRecipeParameterKey,
+  type RecipeDownloadRequest,
+  type RecipeDraft,
+  type UpdateRecipeRequest
+} from '../../shared/recipe'
+import {
+  isUserRole,
+  type CreateFirstAdminRequest,
+  type CreateUserRequest,
+  type LoginRequest,
+  type SetUserEnabledRequest,
+  type UpdateUserRoleRequest
+} from '../../shared/security'
 import {
   isTrendRangePreset,
   type HistoricalTrendQuery,
@@ -92,6 +107,93 @@ export function parseDeviceCommandRequest(payload: unknown, source: string): Dev
   return {
     commandId,
     value
+  }
+}
+
+export function parseLoginRequest(payload: unknown, source: string): LoginRequest {
+  const record = requireRecord(payload, 'Login payload must be an object.', source)
+  return {
+    username: requireNonEmptyString(record.username, 'Username is required.', source),
+    password: requireString(record.password, 'Password is required.', source)
+  }
+}
+
+export function parseCreateFirstAdminRequest(payload: unknown, source: string): CreateFirstAdminRequest {
+  const record = requireRecord(payload, 'First Admin payload must be an object.', source)
+  return {
+    username: requireNonEmptyString(record.username, 'Admin username is required.', source),
+    displayName: requireNonEmptyString(record.displayName, 'Admin display name is required.', source),
+    password: requireString(record.password, 'Admin password is required.', source)
+  }
+}
+
+export function parseCreateUserRequest(payload: unknown, source: string): CreateUserRequest {
+  const record = requireRecord(payload, 'Create user payload must be an object.', source)
+  return {
+    username: requireNonEmptyString(record.username, 'Username is required.', source),
+    displayName: requireNonEmptyString(record.displayName, 'Display name is required.', source),
+    role: requireUserRole(record.role, source),
+    password: requireString(record.password, 'Password is required.', source)
+  }
+}
+
+export function parseUpdateUserRoleRequest(payload: unknown, source: string): UpdateUserRoleRequest {
+  const record = requireRecord(payload, 'Update user role payload must be an object.', source)
+  return {
+    userId: requireNonEmptyString(record.userId, 'User id is required.', source),
+    role: requireUserRole(record.role, source)
+  }
+}
+
+export function parseSetUserEnabledRequest(payload: unknown, source: string): SetUserEnabledRequest {
+  const record = requireRecord(payload, 'Set user enabled payload must be an object.', source)
+  return {
+    userId: requireNonEmptyString(record.userId, 'User id is required.', source),
+    enabled: requireBoolean(record.enabled, 'User enabled flag must be a boolean.', source)
+  }
+}
+
+export function parseRecipeDraft(payload: unknown, source: string): RecipeDraft {
+  const record = requireRecord(payload, 'Recipe draft payload must be an object.', source)
+  return {
+    name: requireString(record.name, 'Recipe name must be a string.', source),
+    description: parseOptionalString(record.description, 'Recipe description must be a string.', source),
+    parameters: parseRecipeParameters(record.parameters, source)
+  }
+}
+
+export function parseUpdateRecipeRequest(payload: unknown, source: string): UpdateRecipeRequest {
+  const record = requireRecord(payload, 'Update Recipe payload must be an object.', source)
+  return {
+    recipeId: requireNonEmptyString(record.recipeId, 'Recipe id is required.', source),
+    draft: parseRecipeDraft(record.draft, source)
+  }
+}
+
+export function parseRecipeIdPayload(payload: unknown, source: string): string {
+  return requireNonEmptyString(payload, 'Recipe id is required.', source)
+}
+
+export function parseRecipeDownloadRequest(payload: unknown, source: string): RecipeDownloadRequest {
+  const record = requireRecord(payload, 'Recipe download payload must be an object.', source)
+  return {
+    recipeId: requireNonEmptyString(record.recipeId, 'Recipe id is required.', source)
+  }
+}
+
+export function parseAuditQuery(payload: unknown, source: string): AuditQuery {
+  const record = requireRecord(payload, 'Audit query payload must be an object.', source)
+  return {
+    startTime: parseOptionalIsoTime(record.startTime, 'Audit startTime must be an ISO timestamp.', source),
+    endTime: parseOptionalIsoTime(record.endTime, 'Audit endTime must be an ISO timestamp.', source),
+    user: parseOptionalNonEmptyString(record.user, 'Audit user filter must be a string.', source),
+    action: parseOptionalNonEmptyString(record.action, 'Audit action filter must be a string.', source),
+    target: parseOptionalNonEmptyString(record.target, 'Audit target filter must be a string.', source),
+    result: record.result === undefined || record.result === null
+      ? undefined
+      : requireAuditResult(record.result, source),
+    limit: parseOptionalPositiveInteger(record.limit, 'Audit limit must be a positive integer.', source),
+    offset: parseOptionalNonNegativeInteger(record.offset, 'Audit offset must be a non-negative integer.', source)
   }
 }
 
@@ -237,6 +339,26 @@ function parseOptionalPositiveInteger(value: unknown, message: string, source: s
   throwInvalidPayload(message, source)
 }
 
+function parseOptionalNonNegativeInteger(value: unknown, message: string, source: string): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined
+  }
+
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
+    return value
+  }
+
+  throwInvalidPayload(message, source)
+}
+
+function requireBoolean(value: unknown, message: string, source: string): boolean {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  throwInvalidPayload(message, source)
+}
+
 function requireOneOf<TAllowed extends string>(
   value: unknown,
   allowedValues: readonly TAllowed[],
@@ -289,6 +411,42 @@ function requireAlarmHistoryStatus(value: unknown, source: string) {
   }
 
   throwInvalidPayload('Alarm status filter is invalid.', source)
+}
+
+function requireUserRole(value: unknown, source: string) {
+  if (isUserRole(value)) {
+    return value
+  }
+
+  throwInvalidPayload('User role is invalid.', source)
+}
+
+function requireAuditResult(value: unknown, source: string) {
+  if (isAuditResult(value)) {
+    return value
+  }
+
+  throwInvalidPayload('Audit result filter is invalid.', source)
+}
+
+function parseRecipeParameters(value: unknown, source: string): RecipeDraft['parameters'] {
+  const record = requireRecord(value, 'Recipe parameters must be an object.', source)
+  return Object.entries(record).reduce<RecipeDraft['parameters']>((parameters, [key, entry]) => {
+    if (!isRecipeParameterKey(key)) {
+      throwInvalidPayload(`Recipe parameter key is invalid: ${key}`, source)
+    }
+
+    parameters[key] = requireNumber(entry, `Recipe parameter ${key} must be a finite number.`, source)
+    return parameters
+  }, {})
+}
+
+function requireNumber(value: unknown, message: string, source: string): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  throwInvalidPayload(message, source)
 }
 
 function requireTrendRangePreset(value: unknown, source: string): TrendRangePreset {

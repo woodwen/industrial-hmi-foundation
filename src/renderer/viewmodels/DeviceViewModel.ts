@@ -23,6 +23,7 @@ import {
 } from '../../shared/modbus'
 import type { AppApplicationService } from '../application/AppApplicationService'
 import type { MessageKey } from '../localization/messages'
+import type { AuthViewModel } from './AuthViewModel'
 import type { TagMonitorRow, TagValuesViewModel } from './TagValuesViewModel'
 
 const VALUE_POINT_IDS = [
@@ -96,7 +97,8 @@ export class DeviceViewModel {
   constructor(
     private readonly appService: AppApplicationService,
     private readonly getLanguage: () => ModbusPointLabelLanguage = () => 'zh-CN',
-    private readonly tags?: TagValuesViewModel
+    private readonly tags?: TagValuesViewModel,
+    private readonly auth?: AuthViewModel
   ) {
     makeAutoObservable(this, {}, { autoBind: true })
   }
@@ -162,6 +164,18 @@ export class DeviceViewModel {
     return this.isConnected && !this.isBusy
   }
 
+  get canStartStopCommand(): boolean {
+    return this.canExecuteCommand && this.hasPermission('device:start-stop')
+  }
+
+  get canWriteParameters(): boolean {
+    return this.canExecuteCommand && this.hasPermission('parameter:write')
+  }
+
+  get canAdvancedControlCommand(): boolean {
+    return this.canExecuteCommand && this.hasPermission('device:advanced-control')
+  }
+
   get endpointLabel(): string {
     return `${this.status.endpoint.host}:${this.status.endpoint.port} / Unit ${this.status.endpoint.unitId}`
   }
@@ -191,7 +205,7 @@ export class DeviceViewModel {
         ...row,
         commandId: pointId === 'inletValveCommand' ? 'setInletValve' : 'setOutletValve',
         checked: typeof currentValue === 'boolean' ? currentValue : false,
-        disabled: !this.canExecuteCommand
+        disabled: !this.canAdvancedControlCommand
       }
     })
   }
@@ -470,6 +484,10 @@ export class DeviceViewModel {
     }
 
     return value
+  }
+
+  private hasPermission(permission: Parameters<AuthViewModel['hasPermission']>[0]): boolean {
+    return this.auth?.hasPermission(permission) ?? true
   }
 
   private clearOperationState(): void {

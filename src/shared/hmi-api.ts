@@ -16,6 +16,30 @@ import type {
   RealtimeTrendRequest,
   RealtimeTrendSnapshot
 } from './trend'
+import type {
+  CreateFirstAdminRequest,
+  CreateUserRequest,
+  CurrentUserSnapshot,
+  LoginRequest,
+  SetUserEnabledRequest,
+  UpdateUserRoleRequest,
+  UserDto,
+  UserListResult
+} from './security'
+import type {
+  RecipeDownloadRequest,
+  RecipeDownloadResult,
+  RecipeDraft,
+  RecipeDto,
+  RecipeListResult,
+  RecipeParameterDefinition,
+  RecipeValidationResult,
+  UpdateRecipeRequest
+} from './recipe'
+import type {
+  AuditLogResult,
+  AuditQuery
+} from './audit'
 
 export type { TagSnapshot, TagValuesChangedEvent } from './tag'
 export type {
@@ -33,6 +57,34 @@ export type {
   RealtimeTrendRequest,
   RealtimeTrendSnapshot
 } from './trend'
+export type {
+  CreateFirstAdminRequest,
+  CreateUserRequest,
+  CurrentUserSnapshot,
+  LoginRequest,
+  Permission,
+  SetUserEnabledRequest,
+  UpdateUserRoleRequest,
+  UserDto,
+  UserListResult,
+  UserRole
+} from './security'
+export type {
+  RecipeDownloadRequest,
+  RecipeDownloadResult,
+  RecipeDraft,
+  RecipeDto,
+  RecipeListResult,
+  RecipeParameterDefinition,
+  RecipeValidationResult,
+  UpdateRecipeRequest
+} from './recipe'
+export type {
+  AuditLogResult,
+  AuditQuery,
+  AuditRecord,
+  AuditResult
+} from './audit'
 
 export type LogCategory = 'application' | 'communication' | 'error'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -178,6 +230,8 @@ export interface DeviceCommandResult {
   message: string
   point?: DevicePointValue
   error?: AppErrorShape
+  auditStatus?: 'notRequired' | 'pending' | 'finalized' | 'failed'
+  authorizationStatus?: 'authorized' | 'rejected'
   timestamp: string
 }
 
@@ -236,6 +290,29 @@ export interface HmiApi {
   }
   commands: {
     execute(request: DeviceCommandRequest): Promise<HmiResult<DeviceCommandResult>>
+  }
+  auth: {
+    getCurrentUser(): Promise<HmiResult<CurrentUserSnapshot>>
+    createFirstAdmin(request: CreateFirstAdminRequest): Promise<HmiResult<UserDto>>
+    login(request: LoginRequest): Promise<HmiResult<CurrentUserSnapshot>>
+    logout(): Promise<HmiResult<CurrentUserSnapshot>>
+    listUsers(): Promise<HmiResult<UserListResult>>
+    createUser(request: CreateUserRequest): Promise<HmiResult<UserDto>>
+    updateUserRole(request: UpdateUserRoleRequest): Promise<HmiResult<UserDto>>
+    setUserEnabled(request: SetUserEnabledRequest): Promise<HmiResult<UserDto>>
+  }
+  recipes: {
+    list(): Promise<HmiResult<RecipeListResult>>
+    getParameterDefinitions(): Promise<HmiResult<RecipeParameterDefinition[]>>
+    validate(draft: RecipeDraft): Promise<HmiResult<RecipeValidationResult>>
+    create(draft: RecipeDraft): Promise<HmiResult<RecipeDto>>
+    update(request: UpdateRecipeRequest): Promise<HmiResult<RecipeDto>>
+    copy(recipeId: string): Promise<HmiResult<RecipeDto>>
+    delete(recipeId: string): Promise<HmiResult<void>>
+    download(request: RecipeDownloadRequest): Promise<HmiResult<RecipeDownloadResult>>
+  }
+  audit: {
+    query(query: AuditQuery): Promise<HmiResult<AuditLogResult>>
   }
   tags: {
     getSnapshot(): Promise<HmiResult<TagSnapshot>>

@@ -3,12 +3,19 @@ import { describe, expect, it } from 'vitest'
 import {
   parseAlarmAcknowledgeRequest,
   parseAlarmHistoryQuery,
+  parseAuditQuery,
+  parseCreateFirstAdminRequest,
+  parseCreateUserRequest,
   parseDeviceCommandRequest,
   parseDeviceReadRequest,
   parseDeviceWriteRequest,
   parseErrorReportInput,
   parseHistoricalTrendQuery,
+  parseLoginRequest,
   parseLogEntryInput,
+  parseRecipeDownloadRequest,
+  parseRecipeDraft,
+  parseRecipeIdPayload,
   parseRealtimeTrendRequest
 } from '../../src/main/ipc/input-validation'
 
@@ -145,6 +152,101 @@ describe('IPC input validation', () => {
     expectInvalidPayload(() => {
       parseDeviceCommandRequest({
         commandId: 'autoMode'
+      }, 'ipc:test')
+    })
+  })
+
+  it('accepts valid auth, Recipe, and Audit payloads', () => {
+    expect(parseCreateFirstAdminRequest({
+      username: 'admin',
+      displayName: 'Admin',
+      password: 'secret1'
+    }, 'ipc:test')).toEqual({
+      username: 'admin',
+      displayName: 'Admin',
+      password: 'secret1'
+    })
+    expect(parseLoginRequest({
+      username: 'engineer',
+      password: 'secret1'
+    }, 'ipc:test')).toEqual({
+      username: 'engineer',
+      password: 'secret1'
+    })
+    expect(parseCreateUserRequest({
+      username: 'operator',
+      displayName: 'Operator',
+      role: 'Operator',
+      password: 'secret1'
+    }, 'ipc:test')).toEqual({
+      username: 'operator',
+      displayName: 'Operator',
+      role: 'Operator',
+      password: 'secret1'
+    })
+    expect(parseRecipeDraft({
+      name: 'Standard Recipe',
+      description: 'Simulator recipe',
+      parameters: {
+        targetTemperature: 60,
+        rpmSetpoint: 900,
+        mixDuration: 300,
+        feedDuration: 120
+      }
+    }, 'ipc:test')).toEqual({
+      name: 'Standard Recipe',
+      description: 'Simulator recipe',
+      parameters: {
+        targetTemperature: 60,
+        rpmSetpoint: 900,
+        mixDuration: 300,
+        feedDuration: 120
+      }
+    })
+    expect(parseRecipeIdPayload('recipe-1', 'ipc:test')).toBe('recipe-1')
+    expect(parseRecipeDownloadRequest({
+      recipeId: 'recipe-1'
+    }, 'ipc:test')).toEqual({
+      recipeId: 'recipe-1'
+    })
+    expect(parseAuditQuery({
+      action: 'Recipe Download',
+      result: 'PartialFailed',
+      limit: 100,
+      offset: 50
+    }, 'ipc:test')).toEqual({
+      action: 'Recipe Download',
+      result: 'PartialFailed',
+      limit: 100,
+      offset: 50
+    })
+  })
+
+  it('rejects invalid auth, Recipe, and Audit payloads', () => {
+    expectInvalidPayload(() => {
+      parseCreateUserRequest({
+        username: 'operator',
+        displayName: 'Operator',
+        role: 'Supervisor',
+        password: 'secret1'
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseRecipeDraft({
+        name: 'Invalid Recipe',
+        parameters: {
+          targetTemperature: '60'
+        }
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseRecipeDownloadRequest({
+        recipeId: ''
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseAuditQuery({
+        result: 'Unknown'
       }, 'ipc:test')
     })
   })

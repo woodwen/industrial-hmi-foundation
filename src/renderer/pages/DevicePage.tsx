@@ -170,13 +170,13 @@ export const DevicePage = observer(() => {
               max="90"
               step="0.1"
               value={device.targetTemperatureInput}
-              disabled={!device.canExecuteCommand || device.writingPointId === 'targetTemperature'}
+              disabled={!device.canWriteParameters || device.writingPointId === 'targetTemperature'}
               onChange={(event) => device.setTargetTemperatureInput(event.currentTarget.value)}
             />
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.canExecuteCommand}
+              disabled={!device.canWriteParameters}
               onClick={() => {
                 void device.writeTargetTemperature()
               }}
@@ -193,13 +193,13 @@ export const DevicePage = observer(() => {
               max="1800"
               step="1"
               value={device.manualMotorRpmInput}
-              disabled={!device.canExecuteCommand || device.writingPointId === 'manualMotorRpmSetpoint'}
+              disabled={!device.canWriteParameters || device.writingPointId === 'manualMotorRpmSetpoint'}
               onChange={(event) => device.setManualMotorRpmInput(event.currentTarget.value)}
             />
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.canExecuteCommand}
+              disabled={!device.canWriteParameters}
               onClick={() => {
                 void device.writeManualMotorRpm()
               }}
@@ -223,7 +223,7 @@ export const DevicePage = observer(() => {
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.canExecuteCommand}
+              disabled={!device.canStartStopCommand}
               onClick={() => {
                 void device.startDevice()
               }}
@@ -233,7 +233,7 @@ export const DevicePage = observer(() => {
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.canExecuteCommand}
+              disabled={!device.canStartStopCommand}
               onClick={() => {
                 void device.stopDevice()
               }}
@@ -243,7 +243,7 @@ export const DevicePage = observer(() => {
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.canExecuteCommand}
+              disabled={!device.canAdvancedControlCommand}
               onClick={() => {
                 void device.startMotor()
               }}
@@ -253,7 +253,7 @@ export const DevicePage = observer(() => {
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.canExecuteCommand}
+              disabled={!device.canAdvancedControlCommand}
               onClick={() => {
                 void device.stopMotor()
               }}

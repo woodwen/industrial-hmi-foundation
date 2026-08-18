@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { App } from '../../src/renderer/App'
 import { createRootViewModel } from '../../src/renderer/viewmodels/RootViewModel'
 import { ViewModelProvider } from '../../src/renderer/viewmodels/ViewModelContext'
-import { createApiClientStub } from '../support/hmi-api-client-stub'
+import { createApiClientStub, createAuditRecord, createRecipe } from '../support/hmi-api-client-stub'
 
 describe('Renderer navigation rendering', () => {
   it('renders dashboard frame by default', () => {
@@ -71,6 +71,111 @@ describe('Renderer navigation rendering', () => {
     expect(markup).toContain('Real-time Trend')
     expect(markup).toContain('Trend chart')
     expect(markup).toContain('Data Available')
+  })
+
+  it('renders Recipe Management after Recipe ViewModel initialization', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      listRecipes: async () => ({
+        ok: true,
+        data: {
+          recipes: [createRecipe()],
+          emittedAt: '2026-08-18T00:00:00.000Z'
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+    await rootViewModel.recipes.initialize()
+    rootViewModel.app.navigate('recipe')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('Recipe Management')
+    expect(markup).toContain('Standard Mixer Recipe')
+    expect(markup).toContain('Target Temperature')
+  })
+
+  it('renders User Management for Admin users', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      listUsers: async () => ({
+        ok: true,
+        data: {
+          users: [{
+            id: 'user-admin',
+            username: 'admin',
+            displayName: 'Admin',
+            role: 'Admin',
+            enabled: true,
+            createdAt: '2026-08-18T00:00:00.000Z',
+            updatedAt: '2026-08-18T00:00:00.000Z'
+          }],
+          emittedAt: '2026-08-18T00:00:00.000Z'
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+    rootViewModel.app.navigate('user-management')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('用户管理')
+    expect(markup).toContain('Create User')
+    expect(markup).toContain('admin')
+  })
+
+  it('renders Audit Log rows and Recipe Download step summaries', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      queryAuditLog: async () => ({
+        ok: true,
+        data: {
+          rows: [createAuditRecord()],
+          emittedAt: '2026-08-18T00:00:00.000Z'
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+    await rootViewModel.auditLog.query()
+    rootViewModel.app.navigate('audit-log')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('Audit Log')
+    expect(markup).toContain('Recipe Download')
+    expect(markup).toContain('targetTemperature:Verified')
+    expect(markup).toContain('rpmSetpoint:WriteFailed')
+  })
+
+  it('filters navigation entries from the current permission snapshot', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      getCurrentUser: async () => ({
+        ok: true,
+        data: {
+          user: {
+            id: 'user-operator',
+            username: 'operator',
+            displayName: 'Operator',
+            role: 'Operator',
+            enabled: true,
+            createdAt: '2026-08-18T00:00:00.000Z',
+            updatedAt: '2026-08-18T00:00:00.000Z'
+          },
+          permissions: [
+            'device:view',
+            'device:start-stop',
+            'alarm:acknowledge',
+            'recipe:read'
+          ],
+          requiresInitialization: false
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('配方')
+    expect(markup).not.toContain('用户管理')
+    expect(markup).not.toContain('审计日志')
+    expect(markup).not.toContain('标签管理')
   })
 })
 

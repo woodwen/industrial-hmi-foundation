@@ -2,9 +2,12 @@ import { vi } from 'vitest'
 
 import type { HmiApiClient } from '../../src/renderer/application/AppApplicationService'
 import type {
+  AuditRecord,
   DeviceCommandResult,
   DeviceStatus,
-  HmiResult
+  HmiResult,
+  RecipeDto,
+  RecipeParameterDefinition
 } from '../../src/shared/hmi-api'
 import {
   DEFAULT_SIMULATOR_HOST,
@@ -63,6 +66,111 @@ export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiA
       timestamp: '2026-08-18T00:00:00.000Z'
     })),
     executeCommand: vi.fn<HmiApiClient['executeCommand']>().mockResolvedValue(success(createCommandResult())),
+    getCurrentUser: vi.fn<HmiApiClient['getCurrentUser']>().mockResolvedValue(success({
+      user: {
+        id: 'user-admin',
+        username: 'admin',
+        displayName: 'Admin',
+        role: 'Admin',
+        enabled: true,
+        createdAt: '2026-08-18T00:00:00.000Z',
+        updatedAt: '2026-08-18T00:00:00.000Z'
+      },
+      permissions: [
+        'device:view',
+        'device:start-stop',
+        'device:advanced-control',
+        'alarm:acknowledge',
+        'recipe:read',
+        'recipe:write',
+        'recipe:download',
+        'parameter:write',
+        'tag-config:write',
+        'audit:read',
+        'user:manage',
+        'system-config:write'
+      ],
+      requiresInitialization: false
+    })),
+    createFirstAdmin: vi.fn<HmiApiClient['createFirstAdmin']>().mockResolvedValue(success({
+      id: 'user-admin',
+      username: 'admin',
+      displayName: 'Admin',
+      role: 'Admin',
+      enabled: true,
+      createdAt: '2026-08-18T00:00:00.000Z',
+      updatedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    login: vi.fn<HmiApiClient['login']>().mockResolvedValue(success({
+      user: null,
+      permissions: [],
+      requiresInitialization: false
+    })),
+    logout: vi.fn<HmiApiClient['logout']>().mockResolvedValue(success({
+      user: null,
+      permissions: [],
+      requiresInitialization: false
+    })),
+    listUsers: vi.fn<HmiApiClient['listUsers']>().mockResolvedValue(success({
+      users: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    createUser: vi.fn<HmiApiClient['createUser']>().mockResolvedValue(success({
+      id: 'user-operator',
+      username: 'operator',
+      displayName: 'Operator',
+      role: 'Operator',
+      enabled: true,
+      createdAt: '2026-08-18T00:00:00.000Z',
+      updatedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    updateUserRole: vi.fn<HmiApiClient['updateUserRole']>().mockResolvedValue(success({
+      id: 'user-operator',
+      username: 'operator',
+      displayName: 'Operator',
+      role: 'Engineer',
+      enabled: true,
+      createdAt: '2026-08-18T00:00:00.000Z',
+      updatedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    setUserEnabled: vi.fn<HmiApiClient['setUserEnabled']>().mockResolvedValue(success({
+      id: 'user-operator',
+      username: 'operator',
+      displayName: 'Operator',
+      role: 'Operator',
+      enabled: false,
+      createdAt: '2026-08-18T00:00:00.000Z',
+      updatedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    listRecipes: vi.fn<HmiApiClient['listRecipes']>().mockResolvedValue(success({
+      recipes: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    getRecipeParameterDefinitions: vi.fn<HmiApiClient['getRecipeParameterDefinitions']>().mockResolvedValue(success(
+      createRecipeParameterDefinitions()
+    )),
+    validateRecipe: vi.fn<HmiApiClient['validateRecipe']>().mockResolvedValue(success({
+      valid: true,
+      issues: []
+    })),
+    createRecipe: vi.fn<HmiApiClient['createRecipe']>().mockResolvedValue(success(createRecipe())),
+    updateRecipe: vi.fn<HmiApiClient['updateRecipe']>().mockResolvedValue(success(createRecipe())),
+    copyRecipe: vi.fn<HmiApiClient['copyRecipe']>().mockResolvedValue(success(createRecipe())),
+    deleteRecipe: vi.fn<HmiApiClient['deleteRecipe']>().mockResolvedValue(success(undefined)),
+    downloadRecipe: vi.fn<HmiApiClient['downloadRecipe']>().mockResolvedValue(success({
+      downloadId: 'download-1',
+      recipeId: 'recipe-1',
+      recipeVersion: 1,
+      status: 'Succeeded',
+      message: 'Recipe download succeeded.',
+      steps: [],
+      startedAt: '2026-08-18T00:00:00.000Z',
+      completedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    queryAuditLog: vi.fn<HmiApiClient['queryAuditLog']>().mockResolvedValue(success({
+      rows: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
     getTagSnapshot: vi.fn<HmiApiClient['getTagSnapshot']>().mockResolvedValue(success(createTagSnapshot())),
     subscribeTagValues: vi.fn<HmiApiClient['subscribeTagValues']>(() => () => undefined),
     getAlarmSnapshot: vi.fn<HmiApiClient['getAlarmSnapshot']>().mockResolvedValue(success({
@@ -149,5 +257,93 @@ function createCommandResult(): DeviceCommandResult {
       timestamp: '2026-08-18T00:00:00.000Z'
     },
     timestamp: '2026-08-18T00:00:00.000Z'
+  }
+}
+
+export function createRecipe(): RecipeDto {
+  return {
+    id: 'recipe-1',
+    name: 'Standard Mixer Recipe',
+    description: 'Simulator recipe',
+    version: 1,
+    parameters: {
+      targetTemperature: 60,
+      rpmSetpoint: 900,
+      mixDuration: 300,
+      feedDuration: 120
+    },
+    createdAt: '2026-08-18T00:00:00.000Z',
+    updatedAt: '2026-08-18T00:00:00.000Z'
+  }
+}
+
+export function createRecipeParameterDefinitions(): RecipeParameterDefinition[] {
+  return [
+    {
+      key: 'targetTemperature',
+      label: 'Target Temperature',
+      unit: '°C',
+      dataType: 'number',
+      required: true,
+      min: 20,
+      max: 90,
+      commandId: 'setTargetTemperature'
+    },
+    {
+      key: 'rpmSetpoint',
+      label: 'RPM Setpoint',
+      unit: 'rpm',
+      dataType: 'number',
+      required: true,
+      min: 0,
+      max: 1800,
+      commandId: 'setRpmSetpoint'
+    },
+    {
+      key: 'mixDuration',
+      label: 'Mix Duration',
+      unit: 's',
+      dataType: 'number',
+      required: true,
+      min: 1,
+      max: 3600
+    },
+    {
+      key: 'feedDuration',
+      label: 'Feed Duration',
+      unit: 's',
+      dataType: 'number',
+      required: true,
+      min: 1,
+      max: 1800
+    }
+  ]
+}
+
+export function createAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
+  return {
+    id: 'audit-1',
+    timestamp: '2026-08-18T00:00:00.000Z',
+    user: 'engineer',
+    role: 'Engineer',
+    action: 'Recipe Download',
+    target: 'recipe:recipe-1',
+    oldValue: null,
+    newValue: {
+      recipeId: 'recipe-1',
+      version: 1,
+      steps: [
+        {
+          parameterKey: 'targetTemperature',
+          status: 'Verified'
+        },
+        {
+          parameterKey: 'rpmSetpoint',
+          status: 'WriteFailed'
+        }
+      ]
+    },
+    result: 'PartialFailed',
+    ...overrides
   }
 }
