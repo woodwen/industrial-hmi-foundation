@@ -53,6 +53,11 @@ describe('ModbusAdapter', () => {
       expect(adapter.getStatus().connectionStatus).toBe('Connected')
       expect(logger.write).toHaveBeenCalledWith(expect.objectContaining({
         category: 'communication',
+        level: 'debug',
+        message: 'Read Modbus TCP values'
+      }))
+      expect(logger.write).toHaveBeenCalledWith(expect.objectContaining({
+        category: 'communication',
         context: expect.objectContaining({
           deviceId: 'simulated-mixer-plc'
         })

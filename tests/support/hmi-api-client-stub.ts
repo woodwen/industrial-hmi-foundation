@@ -11,6 +11,7 @@ import {
   DEFAULT_SIMULATOR_UNIT_ID,
   SIMULATED_MIXER_DEVICE_ID
 } from '../../src/shared/modbus'
+import { DEFAULT_TAG_DEFINITIONS, type TagSnapshot } from '../../src/shared/tag'
 
 export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiApiClient {
   const defaultDeviceStatus = createDeviceStatus()
@@ -59,6 +60,8 @@ export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiA
       },
       timestamp: '2026-08-18T00:00:00.000Z'
     })),
+    getTagSnapshot: vi.fn<HmiApiClient['getTagSnapshot']>().mockResolvedValue(success(createTagSnapshot())),
+    subscribeTagValues: vi.fn<HmiApiClient['subscribeTagValues']>(() => () => undefined),
     ...overrides
   }
 }
@@ -81,5 +84,19 @@ function success<T>(data: T): HmiResult<T> {
   return {
     ok: true,
     data
+  }
+}
+
+function createTagSnapshot(): TagSnapshot {
+  return {
+    deviceId: SIMULATED_MIXER_DEVICE_ID,
+    definitions: DEFAULT_TAG_DEFINITIONS,
+    values: DEFAULT_TAG_DEFINITIONS.map((definition) => ({
+      tagId: definition.id,
+      value: null,
+      quality: 'Uncertain',
+      timestamp: '2026-08-18T00:00:00.000Z'
+    })),
+    emittedAt: '2026-08-18T00:00:00.000Z'
   }
 }

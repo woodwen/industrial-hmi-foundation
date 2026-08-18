@@ -17,6 +17,7 @@ import {
 } from '../../shared/modbus'
 import type { AppApplicationService } from '../application/AppApplicationService'
 import type { MessageKey } from '../localization/messages'
+import type { TagMonitorRow, TagValuesViewModel } from './TagValuesViewModel'
 
 const VALUE_POINT_IDS = [
   'currentTemperature',
@@ -68,7 +69,8 @@ export class DeviceViewModel {
 
   constructor(
     private readonly appService: AppApplicationService,
-    private readonly getLanguage: () => ModbusPointLabelLanguage = () => 'zh-CN'
+    private readonly getLanguage: () => ModbusPointLabelLanguage = () => 'zh-CN',
+    private readonly tags?: TagValuesViewModel
   ) {
     makeAutoObservable(this, {}, { autoBind: true })
   }
@@ -127,6 +129,10 @@ export class DeviceViewModel {
         disabled: !this.isConnected || this.writingPointId !== null
       }
     })
+  }
+
+  get tagMonitorRows(): TagMonitorRow[] {
+    return this.tags?.tagMonitorRows ?? []
   }
 
   async connect(): Promise<void> {

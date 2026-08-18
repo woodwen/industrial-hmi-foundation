@@ -13,10 +13,8 @@
 - Device 页面支持 Connect、Disconnect、Connection Status、手工读取和受控写入。
 - 本期未新增 Modbus 生产依赖，采用 Node TCP 实现轻量 Modbus TCP client/server，便于控制 Electron Main Process 和独立 Simulator 的打包边界。
 
-当前版本不实现：
+`add-modbus-plc-simulator` 本身不实现以下能力；其中 Tag 模型、TagCache、周期采集和 Dashboard 实时监控已在后续 `add-tag-polling-monitoring` change 中实现，见 `docs/tag-polling-monitoring.md`。
 
-- 自动轮询
-- TagCache
 - Alarm
 - Historian
 - Recipe

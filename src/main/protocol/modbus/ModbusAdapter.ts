@@ -101,7 +101,7 @@ export class ModbusAdapter implements IProtocolAdapter {
       }
 
       this.lastSuccessfulAt = new Date().toISOString()
-      this.logSuccess('Read Modbus TCP values', 'read', Date.now() - startedAt, request)
+      this.logSuccess('Read Modbus TCP values', 'read', Date.now() - startedAt, request, 'debug')
 
       return {
         area: request.area,
@@ -275,11 +275,12 @@ export class ModbusAdapter implements IProtocolAdapter {
     message: string,
     event: string,
     durationMs: number,
-    request?: ProtocolReadRequest | ProtocolWriteRequest
+    request?: ProtocolReadRequest | ProtocolWriteRequest,
+    level: 'debug' | 'info' = 'info'
   ): void {
     this.logger.write({
       category: 'communication',
-      level: 'info',
+      level,
       message,
       source: 'main:protocol:modbus',
       context: this.createLogContext({

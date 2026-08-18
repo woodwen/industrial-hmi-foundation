@@ -22,5 +22,11 @@ export const IPC_CHANNELS = {
     getStatus: 'hmi:devices:get-status',
     readRegisters: 'hmi:devices:read-registers',
     writeRegisters: 'hmi:devices:write-registers'
+  },
+  tags: {
+    getSnapshot: 'hmi:tags:get-snapshot',
+    subscribe: 'hmi:tags:subscribe',
+    unsubscribe: 'hmi:tags:unsubscribe',
+    valuesChanged: 'hmi:tags:values-changed'
   }
 } as const

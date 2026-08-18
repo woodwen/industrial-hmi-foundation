@@ -93,6 +93,34 @@ export const DevicePage = observer(() => {
         ) : null}
       </section>
 
+      <section className="device-panel" aria-labelledby="tag-monitor-title">
+        <div className="device-panel-heading">
+          <div>
+            <h3 id="tag-monitor-title">{app.t('device.tagMonitor.title')}</h3>
+            <p>{app.t('device.tagMonitor.source')}</p>
+          </div>
+          <span>{app.t('device.tagMonitor.realtime')}</span>
+        </div>
+        <div className="tag-monitor-list" role="table" aria-label={app.t('device.tagMonitor.title')}>
+          <div role="row" className="tag-monitor-row tag-monitor-header">
+            <span role="columnheader">{app.t('device.tagMonitor.name')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.value')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.unit')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.quality')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.timestamp')}</span>
+          </div>
+          {device.tagMonitorRows.map((row) => (
+            <div role="row" className="tag-monitor-row" key={row.tagId}>
+              <span role="cell">{row.name}</span>
+              <span role="cell">{row.value}</span>
+              <span role="cell">{row.unit || '-'}</span>
+              <span role="cell" className={`quality-text quality-${row.quality.toLowerCase()}`}>{row.quality}</span>
+              <span role="cell">{row.timestamp ?? '-'}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="device-grid" aria-label={app.t('device.values.title')}>
         <div className="device-panel">
           <div className="device-panel-heading">

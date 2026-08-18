@@ -7,7 +7,9 @@ import type {
   DeviceWriteRequest,
   ErrorReportInput,
   HmiApi,
-  LogEntryInput
+  LogEntryInput,
+  TagValuesChangedEvent,
+  TagValuesListener
 } from '../shared/hmi-api'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 
@@ -53,6 +55,22 @@ const hmiApi: HmiApi = {
       IPC_CHANNELS.devices.writeRegisters,
       request
     )
+  },
+  tags: {
+    getSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.tags.getSnapshot),
+    subscribeValues: (listener: TagValuesListener) => {
+      const wrappedListener = (_event: IpcRendererEvent, tagEvent: TagValuesChangedEvent): void => {
+        listener(tagEvent)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.tags.valuesChanged, wrappedListener)
+      void ipcRenderer.invoke(IPC_CHANNELS.tags.subscribe)
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.tags.valuesChanged, wrappedListener)
+        void ipcRenderer.invoke(IPC_CHANNELS.tags.unsubscribe)
+      }
+    }
   }
 }
 

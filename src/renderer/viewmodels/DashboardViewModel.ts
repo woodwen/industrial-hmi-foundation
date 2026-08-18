@@ -1,6 +1,7 @@
 import { makeAutoObservable } from 'mobx'
 
 import type { MessageKey } from '../localization/messages'
+import type { DashboardMetric, TagValuesViewModel } from './TagValuesViewModel'
 
 interface DashboardSummaryCard {
   id: 'devices' | 'tags' | 'alarms'
@@ -33,7 +34,11 @@ export class DashboardViewModel {
     }
   ]
 
-  constructor() {
+  constructor(private readonly tags?: TagValuesViewModel) {
     makeAutoObservable(this)
+  }
+
+  get realtimeMetrics(): DashboardMetric[] {
+    return this.tags?.dashboardMetrics ?? []
   }
 }

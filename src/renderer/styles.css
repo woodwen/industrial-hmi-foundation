@@ -304,7 +304,7 @@ button {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
 }
 
@@ -333,6 +333,40 @@ button {
 .metric strong {
   color: #17202a;
   font-size: 26px;
+}
+
+.quality-good {
+  border-color: #97d4ba;
+  background: #f1fbf6;
+}
+
+.quality-bad {
+  border-color: #efb0ad;
+  background: #fff4f3;
+}
+
+.quality-uncertain {
+  border-color: #e7cf7a;
+  background: #fff9df;
+}
+
+.quality-text {
+  font-weight: 700;
+}
+
+.quality-text.quality-good {
+  color: #0f5f4f;
+  background: transparent;
+}
+
+.quality-text.quality-bad {
+  color: #8b2521;
+  background: transparent;
+}
+
+.quality-text.quality-uncertain {
+  color: #6c4f09;
+  background: transparent;
 }
 
 .placeholder-panel {
@@ -533,6 +567,47 @@ button {
   overflow: auto;
   border: 1px solid #d8e0eb;
   border-radius: 6px;
+}
+
+.tag-monitor-list {
+  display: grid;
+  overflow: auto;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+}
+
+.tag-monitor-row {
+  display: grid;
+  grid-template-columns:
+    minmax(160px, 1.2fr)
+    minmax(120px, 0.9fr)
+    minmax(72px, 0.45fr)
+    minmax(96px, 0.55fr)
+    minmax(210px, 1.2fr);
+  min-width: 760px;
+  border-bottom: 1px solid #d8e0eb;
+}
+
+.tag-monitor-row:last-child {
+  border-bottom: 0;
+}
+
+.tag-monitor-header {
+  color: #41576d;
+  background: #e9eff6;
+  font-weight: 700;
+}
+
+.tag-monitor-row span {
+  min-width: 0;
+  min-height: 40px;
+  border-right: 1px solid #d8e0eb;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.tag-monitor-row span:last-child {
+  border-right: 0;
 }
 
 .device-value-row {

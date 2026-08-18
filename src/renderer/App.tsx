@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
 
 import { AppLayout } from './components/AppLayout'
@@ -11,7 +12,14 @@ import { TrendPage } from './pages/TrendPage'
 import { useViewModels } from './viewmodels/ViewModelContext'
 
 export const App = observer(() => {
-  const { app } = useViewModels()
+  const { app, tags } = useViewModels()
+
+  useEffect(() => {
+    void tags.initialize()
+    return () => {
+      tags.dispose()
+    }
+  }, [tags])
 
   return (
     <AppLayout>

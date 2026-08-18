@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, type IpcMainInvokeEvent } from 'electron'
 
 import { toAppError } from '../../shared/app-error'
 import type {
@@ -9,8 +9,10 @@ import type {
   DeviceWriteResponse,
   HmiResult
 } from '../../shared/hmi-api'
+import type { TagSnapshot } from '../../shared/tag'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import { createDefaultDeviceManager } from '../device'
+import { TagCache, TagService } from '../tag'
 import type { Logger } from '../logging/logger'
 import * as defaultUpdateManager from '../update-manager'
 import {
@@ -21,7 +23,7 @@ import {
   parseOptionalStringPayload
 } from './input-validation'
 
-type Handler<TResult> = (payload: unknown) => Promise<TResult> | TResult
+type Handler<TResult> = (payload: unknown, event: IpcMainInvokeEvent) => Promise<TResult> | TResult
 
 export interface UpdateManagerApi {
   checkForUpdates(): Promise<void>
@@ -39,10 +41,21 @@ export interface DeviceManagerApi {
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse>
 }
 
+export interface TagManagerApi {
+  getTagSnapshot(): TagSnapshot
+}
+
+export interface TagSubscriptionApi {
+  addSubscriber(webContents: IpcMainInvokeEvent['sender']): void
+  removeSubscriber(webContentsId: number): void
+}
+
 export function registerIpcHandlers(
   logger: Logger,
   updateManager: UpdateManagerApi = defaultUpdateManager,
-  deviceManager: DeviceManagerApi = createDefaultDeviceManager(logger)
+  deviceManager: DeviceManagerApi = createDefaultDeviceManager(logger),
+  tagManager: TagManagerApi = createDefaultTagManager(),
+  tagSubscription: TagSubscriptionApi = createNoopTagSubscription()
 ): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
     name: app.getName(),
@@ -115,6 +128,16 @@ export function registerIpcHandlers(
   handleIpc<DeviceWriteResponse>(IPC_CHANNELS.devices.writeRegisters, logger, (payload) => (
     deviceManager.writeDeviceRegisters(parseDeviceWriteRequest(payload, `ipc:${IPC_CHANNELS.devices.writeRegisters}`))
   ))
+
+  handleIpc<TagSnapshot>(IPC_CHANNELS.tags.getSnapshot, logger, () => tagManager.getTagSnapshot())
+
+  handleIpc<void>(IPC_CHANNELS.tags.subscribe, logger, (_payload, event) => {
+    tagSubscription.addSubscriber(event.sender)
+  })
+
+  handleIpc<void>(IPC_CHANNELS.tags.unsubscribe, logger, (_payload, event) => {
+    tagSubscription.removeSubscriber(event.sender.id)
+  })
 }
 
 function handleIpc<TResult>(
@@ -122,9 +145,9 @@ function handleIpc<TResult>(
   logger: Logger,
   handler: Handler<TResult>
 ): void {
-  ipcMain.handle(channel, async (_event, payload: unknown): Promise<HmiResult<TResult>> => {
+  ipcMain.handle(channel, async (event, payload: unknown): Promise<HmiResult<TResult>> => {
     try {
-      const data = await handler(payload)
+      const data = await handler(payload, event)
       return {
         ok: true,
         data
@@ -149,4 +172,23 @@ function handleIpc<TResult>(
       }
     }
   })
+}
+
+function createDefaultTagCache(): TagCache {
+  const tagService = new TagService()
+  return new TagCache(tagService.listTagDefinitions())
+}
+
+function createDefaultTagManager(): TagManagerApi {
+  const tagCache = createDefaultTagCache()
+  return {
+    getTagSnapshot: () => tagCache.getSnapshot('simulated-mixer-plc')
+  }
+}
+
+function createNoopTagSubscription(): TagSubscriptionApi {
+  return {
+    addSubscriber: () => undefined,
+    removeSubscriber: () => undefined
+  }
 }

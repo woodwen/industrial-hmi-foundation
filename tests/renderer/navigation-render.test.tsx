@@ -12,7 +12,8 @@ describe('Renderer navigation rendering', () => {
     const markup = renderApp(rootViewModel)
 
     expect(markup).toContain('仪表盘')
-    expect(markup).toContain('基础架构阶段尚未配置实时采集')
+    expect(markup).toContain('模拟混料设备实时监控已启用')
+    expect(markup).toContain('Temperature')
   })
 
   it('renders selected device frame after active page changes', () => {

@@ -9,6 +9,8 @@ import type {
   ErrorReportInput,
   HmiResult,
   LogEntryInput,
+  TagSnapshot,
+  TagValuesListener,
   Unsubscribe
 } from '../../shared/hmi-api'
 
@@ -27,6 +29,8 @@ export interface HmiApiClient {
   getDeviceStatus(): Promise<HmiResult<DeviceStatus>>
   readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>
+  getTagSnapshot(): Promise<HmiResult<TagSnapshot>>
+  subscribeTagValues(listener: TagValuesListener): Unsubscribe
 }
 
 export class AppApplicationService {
@@ -92,5 +96,13 @@ export class AppApplicationService {
 
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>> {
     return this.apiClient.writeDeviceRegisters(request)
+  }
+
+  getTagSnapshot(): Promise<HmiResult<TagSnapshot>> {
+    return this.apiClient.getTagSnapshot()
+  }
+
+  subscribeTagValues(listener: TagValuesListener): Unsubscribe {
+    return this.apiClient.subscribeTagValues(listener)
   }
 }

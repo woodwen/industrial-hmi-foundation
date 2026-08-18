@@ -4,6 +4,7 @@ import type { DeviceManagerApi, UpdateManagerApi } from '../../src/main/ipc/regi
 import type { Logger } from '../../src/main/logging/logger'
 import type { DeviceReadResponse, DeviceStatus, HmiResult } from '../../src/shared/hmi-api'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
+import { DEFAULT_TAG_DEFINITIONS, type TagSnapshot } from '../../src/shared/tag'
 import { createDeviceStatus } from '../support/hmi-api-client-stub'
 
 const electronMocks = vi.hoisted(() => {
@@ -97,6 +98,59 @@ describe('Device IPC registration', () => {
       }
     })
   })
+
+  it('returns Tag snapshots through the typed Tag IPC handler', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const tagManager = {
+      getTagSnapshot: vi.fn(() => createTagSnapshot())
+    }
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      tagManager
+    )
+    const handler = getHandler(IPC_CHANNELS.tags.getSnapshot)
+    const result = await handler({}, undefined) as HmiResult<TagSnapshot>
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        deviceId: 'simulated-mixer-plc',
+        definitions: expect.any(Array),
+        values: expect.any(Array)
+      }
+    })
+    expect(tagManager.getTagSnapshot).toHaveBeenCalled()
+  })
+
+  it('registers and removes Tag subscribers by webContents id', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const tagSubscription = {
+      addSubscriber: vi.fn(),
+      removeSubscriber: vi.fn()
+    }
+    const sender = {
+      id: 7
+    }
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      {
+        getTagSnapshot: () => createTagSnapshot()
+      },
+      tagSubscription
+    )
+
+    await getHandler(IPC_CHANNELS.tags.subscribe)({ sender }, undefined)
+    await getHandler(IPC_CHANNELS.tags.unsubscribe)({ sender }, undefined)
+
+    expect(tagSubscription.addSubscriber).toHaveBeenCalledWith(sender)
+    expect(tagSubscription.removeSubscriber).toHaveBeenCalledWith(7)
+  })
 })
 
 function getHandler(channel: string): (event: unknown, payload: unknown) => Promise<unknown> {
@@ -152,5 +206,19 @@ function createUpdateManager(): UpdateManagerApi {
 function createLogger(): Logger {
   return {
     write: vi.fn()
+  }
+}
+
+function createTagSnapshot(): TagSnapshot {
+  return {
+    deviceId: 'simulated-mixer-plc',
+    definitions: DEFAULT_TAG_DEFINITIONS,
+    values: DEFAULT_TAG_DEFINITIONS.map((definition) => ({
+      tagId: definition.id,
+      value: null,
+      quality: 'Uncertain',
+      timestamp: '2026-08-18T00:00:00.000Z'
+    })),
+    emittedAt: '2026-08-18T00:00:00.000Z'
   }
 }

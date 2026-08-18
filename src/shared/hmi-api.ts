@@ -1,5 +1,8 @@
 import type { AppErrorShape } from './app-error'
 import type { ModbusEngineeringValue, ModbusPointId, ModbusRawValue, ModbusRegisterArea } from './modbus'
+import type { TagSnapshot, TagValuesChangedEvent } from './tag'
+
+export type { TagSnapshot, TagValuesChangedEvent } from './tag'
 
 export type LogCategory = 'application' | 'communication' | 'error'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -121,6 +124,7 @@ export type AppUpdateEvent =
   | { type: 'error'; reason: UpdateErrorReason; message: string }
 
 export type AppUpdateListener = (event: AppUpdateEvent) => void
+export type TagValuesListener = (event: TagValuesChangedEvent) => void
 export type Unsubscribe = () => void
 
 export type HmiResult<T> =
@@ -157,5 +161,9 @@ export interface HmiApi {
     getStatus(): Promise<HmiResult<DeviceStatus>>
     readRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
     writeRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>
+  }
+  tags: {
+    getSnapshot(): Promise<HmiResult<TagSnapshot>>
+    subscribeValues(listener: TagValuesListener): Unsubscribe
   }
 }

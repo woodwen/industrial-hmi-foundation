@@ -12,12 +12,15 @@ import type {
   ErrorReportInput,
   HmiApi,
   HmiResult,
-  LogEntryInput
+  LogEntryInput,
+  TagSnapshot,
+  TagValuesChangedEvent,
+  TagValuesListener
 } from '../../src/shared/hmi-api'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 
 const electronMocks = vi.hoisted(() => {
-  type IpcListener = (event: unknown, updateEvent: AppUpdateEvent) => void
+  type IpcListener = (event: unknown, payload: unknown) => void
 
   const exposedApis = new Map<string, unknown>()
   const listeners = new Map<string, Set<IpcListener>>()
@@ -79,6 +82,9 @@ describe('Preload HMI API contract', () => {
     expectTypeOf<HmiApi['devices']['readRegisters']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceReadResponse>>>()
     expectTypeOf<HmiApi['devices']['writeRegisters']>().parameters.toEqualTypeOf<[DeviceWriteRequest]>()
     expectTypeOf<HmiApi['devices']['writeRegisters']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceWriteResponse>>>()
+    expectTypeOf<HmiApi['tags']['getSnapshot']>().returns.toEqualTypeOf<Promise<HmiResult<TagSnapshot>>>()
+    expectTypeOf<HmiApi['tags']['subscribeValues']>().parameters.toEqualTypeOf<[TagValuesListener]>()
+    expectTypeOf<HmiApi['tags']['subscribeValues']>().returns.toEqualTypeOf<() => void>()
   })
 
   it('routes device methods through dedicated IPC channels', async () => {
@@ -128,10 +134,53 @@ describe('Preload HMI API contract', () => {
       expect.any(Function)
     )
   })
+
+  it('routes Tag snapshot and subscription through dedicated IPC channels', async () => {
+    await import('../../src/preload/index')
+    const hmiApi = electronMocks.exposedApis.get('hmi') as HmiApi
+    const listener = vi.fn<TagValuesListener>()
+
+    await hmiApi.tags.getSnapshot()
+    const unsubscribe = hmiApi.tags.subscribeValues(listener)
+    emitTagValuesEvent({
+      deviceId: 'simulated-mixer-plc',
+      values: [{
+        tagId: 'currentTemperature',
+        value: 25.5,
+        quality: 'Good',
+        timestamp: '2026-08-18T00:00:00.000Z'
+      }],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })
+
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.tags.getSnapshot)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.tags.subscribe)
+    expect(electronMocks.ipcRenderer.on).toHaveBeenCalledWith(
+      IPC_CHANNELS.tags.valuesChanged,
+      expect.any(Function)
+    )
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      deviceId: 'simulated-mixer-plc'
+    }))
+
+    unsubscribe()
+
+    expect(electronMocks.ipcRenderer.removeListener).toHaveBeenCalledWith(
+      IPC_CHANNELS.tags.valuesChanged,
+      expect.any(Function)
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.tags.unsubscribe)
+  })
 })
 
 function emitUpdateEvent(event: AppUpdateEvent): void {
   electronMocks.listeners.get(IPC_CHANNELS.updates.event)?.forEach((listener) => {
+    listener({}, event)
+  })
+}
+
+function emitTagValuesEvent(event: TagValuesChangedEvent): void {
+  electronMocks.listeners.get(IPC_CHANNELS.tags.valuesChanged)?.forEach((listener) => {
     listener({}, event)
   })
 }

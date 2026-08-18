@@ -18,7 +18,8 @@ const prohibitedImports = new Set([
 ])
 const prohibitedPatterns = [
   /from\s+['"][./]+main[/'"]/,
-  /from\s+['"][./]+.*\/main[/'"]/
+  /from\s+['"][./]+.*\/main[/'"]/,
+  /from\s+['"][^'"]*(PollingScheduler|TagService|TagCache|ModbusAdapter)['"]/
 ]
 
 describe('Renderer architecture boundary', () => {
