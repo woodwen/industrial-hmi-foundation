@@ -5,6 +5,7 @@
   "description": "Industrial HMI foundation desktop application.",
   "author": "woodmax",
   "license": "MIT",
+  "packageManager": "yarn@1.22.22",
   "homepage": "https://github.com/woodwen/industrial-hmi-foundation#readme",
   "repository": {
     "type": "git",
@@ -12,19 +13,24 @@
   },
   "main": "out/main/index.js",
   "scripts": {
+    "predev": "yarn rebuild:native:electron",
     "dev": "electron-vite dev",
+    "rebuild:native:electron": "electron-rebuild -f -w better-sqlite3",
+    "rebuild:native:node": "node-gyp rebuild --release --directory=node_modules/better-sqlite3",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
+    "pretest": "yarn rebuild:native:node",
     "test": "vitest run",
-    "build": "npm run typecheck && electron-vite build",
-    "dist": "npm run build && electron-builder",
+    "build": "yarn typecheck && electron-vite build",
+    "dist": "yarn build && electron-builder",
+    "presmoke:start": "yarn rebuild:native:electron",
     "smoke:start": "node scripts/smoke-start.mjs",
     "simulator:build": "tsc -p tsconfig.simulator.json",
-    "simulator:start": "npm run simulator:build && node out/simulator/simulator/index.js",
-    "simulator:dev": "npm run simulator:start"
+    "simulator:start": "yarn simulator:build && node out/simulator/simulator/index.js",
+    "simulator:dev": "yarn simulator:start"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "^12.11.1",
     "builder-util-runtime": "9.7.0",
     "electron-updater": "^6.8.9",
     "mobx": "^6.13.5",
@@ -33,6 +39,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
     "@eslint/js": "^9.13.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.8.6",
@@ -44,6 +51,7 @@
     "electron-vite": "^2.3.0",
     "eslint": "^9.13.0",
     "globals": "^15.11.0",
+    "node-gyp": "^12.4.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.12.2",
     "vite": "^5.4.10",

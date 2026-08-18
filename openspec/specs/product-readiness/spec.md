@@ -133,7 +133,7 @@ TBD - created by archiving change add-localized-help-release-readiness. Update P
 - **AND** 取消订阅后 Renderer SHALL 不再收到该 listener 的更新事件
 
 ### Requirement: GitHub Release Packaging
-项目 SHALL 提供参考 StockMonitor 但适配本项目 npm 工具链的 GitHub 自动打包发布流程。
+项目 SHALL 提供参考 StockMonitor 但适配本项目 Yarn 工具链的 GitHub 自动打包发布流程。
 
 #### Scenario: 发布 workflow 触发
 - **WHEN** 维护者向 `master` 分支推送版本变更
@@ -147,7 +147,7 @@ TBD - created by archiving change add-localized-help-release-readiness. Update P
 
 #### Scenario: 发布前验证
 - **WHEN** release workflow 准备构建 artifacts
-- **THEN** workflow SHALL 运行 `npm ci`、`npm run typecheck`、`npm run lint`、`npm run test`、`node scripts/extract-changelog-release-notes.mjs --check` 和 `npm run build`
+- **THEN** workflow SHALL 运行 `yarn install --frozen-lockfile`、`yarn typecheck`、`yarn lint`、`yarn test`、`node scripts/extract-changelog-release-notes.mjs --check` 和 `yarn build`
 - **AND** workflow SHALL 验证 `package.json` version 与 `CHANGELOG.md` 顶部 Unreleased 版本一致
 
 #### Scenario: 跨平台 artifacts
@@ -189,7 +189,7 @@ TBD - created by archiving change add-localized-help-release-readiness. Update P
 
 #### Scenario: 本 change 实施完成
 - **WHEN** 维护者运行项目验证
-- **THEN** `npm run typecheck`、`npm run lint`、`npm run test` 和 `npm run build` SHALL 通过
+- **THEN** `yarn typecheck`、`yarn lint`、`yarn test` 和 `yarn build` SHALL 通过
 
 #### Scenario: 多语言和帮助测试
 - **WHEN** 测试运行
@@ -207,7 +207,7 @@ TBD - created by archiving change add-localized-help-release-readiness. Update P
 - **WHEN** release workflow 配置测试运行
 - **THEN** 测试 SHALL 验证 workflow 包含发版后准备下一开发版本的 job
 - **AND** 测试 SHALL 验证 workflow 使用 `dev` 作为 development branch
-- **AND** 测试 SHALL 验证 workflow 使用 npm 命令而不是 StockMonitor 的 Yarn 命令
+- **AND** 测试 SHALL 验证 workflow 使用本项目 Yarn 命令
 - **AND** 测试 SHALL 验证 workflow 不启用 GitHub Packages
 
 ### Requirement: Industrial Business Scope Remains Deferred

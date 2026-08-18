@@ -21,6 +21,7 @@
 ### Build
 
 - 补强 GitHub Release workflow：release title 使用 `v<version>`，发布后在既有 `dev` 分支准备下一开发版本。
+- 统一项目 Yarn 工具链，并修复 `better-sqlite3` 在 Electron dev/test 入口之间的 native ABI 重编译流程。
 
 ### Notes
 

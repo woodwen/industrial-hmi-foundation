@@ -25,7 +25,7 @@
 启动模拟器：
 
 ```bash
-npm run simulator:start
+yarn simulator:start
 ```
 
 停止模拟器：
@@ -137,7 +137,7 @@ Electron HMI 当前默认连接 `127.0.0.1:1502` / Unit ID `1`。如果修改模
 
 验收流程：
 
-1. 运行 `npm run simulator:start`。
+1. 运行 `yarn simulator:start`。
 2. 启动 Electron HMI。
 3. 打开 Device 页面，点击 `Connect`。
 4. 点击 `手工读取`，确认当前温度、液位、电机转速等过程值展示。

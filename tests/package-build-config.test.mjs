@@ -32,10 +32,10 @@ describe('package build config', () => {
   it('builds and uploads artifacts needed by update checks', () => {
     expect(packageJson.build.mac.target).toEqual(expect.arrayContaining(['dmg', 'zip']))
     expect(releaseWorkflow).toContain('branches:\n      - master')
-    expect(releaseWorkflow).toContain('npm ci')
-    expect(releaseWorkflow).toContain('npm run typecheck')
-    expect(releaseWorkflow).toContain('npm run lint')
-    expect(releaseWorkflow).toContain('npm run test')
+    expect(releaseWorkflow).toContain('yarn install --frozen-lockfile')
+    expect(releaseWorkflow).toContain('yarn typecheck')
+    expect(releaseWorkflow).toContain('yarn lint')
+    expect(releaseWorkflow).toContain('yarn test')
     expect(releaseWorkflow).toContain('node scripts/extract-changelog-release-notes.mjs --check')
     expect(releaseWorkflow).toContain('release/*.dmg')
     expect(releaseWorkflow).toContain('release/*.zip')
@@ -66,8 +66,10 @@ describe('package build config', () => {
     expect(releaseWorkflow).not.toContain('git checkout -b dev')
   })
 
-  it('keeps the release workflow on npm and GitHub Releases only', () => {
-    expect(releaseWorkflow).not.toContain('yarn')
+  it('keeps the release workflow on Yarn and GitHub Releases only', () => {
+    expect(releaseWorkflow).not.toContain('npm ci')
+    expect(releaseWorkflow).not.toContain('npm run')
+    expect(releaseWorkflow).not.toContain('npx ')
     expect(releaseWorkflow).not.toContain('packages: write')
     expect(releaseWorkflow).not.toContain('registry-url')
     expect(releaseWorkflow).not.toContain('npm publish')

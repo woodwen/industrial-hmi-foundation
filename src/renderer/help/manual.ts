@@ -80,7 +80,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '常见问题',
       paragraphs: ['如果 Device 页面无法读取数据，先确认 PLC Simulator 已独立启动。'],
       bullets: [
-        '看不到实时数据：运行 npm run simulator:start 后再在 Device 页面 Connect。',
+        '看不到实时数据：运行 yarn simulator:start 后再在 Device 页面 Connect。',
         'Tag Quality 显示 Bad：检查 Simulator 是否停止或通信是否中断；恢复 Simulator 后 HMI 会按 backoff 自动重连，已进入 Fault 时再手工 Connect。',
         '检查更新提示开发环境：请使用 packaged 应用验证真实更新检查。',
         '版本更新说明为空：请确认 CHANGELOG.md 中存在当前版本区块。'
@@ -159,7 +159,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'FAQ',
       paragraphs: ['If Device cannot read data, confirm the PLC Simulator is running independently.'],
       bullets: [
-        'No realtime data: run npm run simulator:start, then use Connect on the Device page.',
+        'No realtime data: run yarn simulator:start, then use Connect on the Device page.',
         'Tag Quality shows Bad: check whether the Simulator stopped or communication was interrupted; after the Simulator recovers, HMI reconnects automatically with backoff, and Fault still requires manual Connect.',
         'Development update status: use a packaged app to verify real update checks.',
         'Empty version notes: confirm CHANGELOG.md contains a current version section.'

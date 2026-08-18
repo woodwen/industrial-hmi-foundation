@@ -195,7 +195,7 @@ TrendService 默认每 `1000ms` 从 TagCache 当前值采样一次，只采样�
 
 ## Manual Verification
 
-1. 启动 Simulator：`npm run simulator:start`。
+1. 启动 Simulator：`yarn simulator:start`。
 2. 启动 HMI 并连接设备。
 3. 模拟或写入温度超过 `80.0°C` 并保持超过 `3000ms`。
 4. Real-time Alarm 应出现 `TEMP_HIGH`。

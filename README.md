@@ -32,24 +32,24 @@ English summary: this repository provides a secure Electron foundation for an in
 ## 环境要求
 
 - Node.js 22 或兼容版本。
-- npm。
+- Yarn 1.x。
 - macOS、Windows 或 Linux 桌面环境。
 
 ## 安装和运行
 
 ```bash
-npm install
-npm run dev
+yarn install
+yarn dev
 ```
 
 ## 验证命令
 
 ```bash
-npm run typecheck
-npm run lint
-npm run test
-npm run build
-npm run smoke:start
+yarn typecheck
+yarn lint
+yarn test
+yarn build
+yarn smoke:start
 ```
 
 ## 目录结构
@@ -88,7 +88,7 @@ View -> ViewModel -> Application Service / Domain Service -> Infrastructure
 项目使用 Electron Builder 生成桌面安装包：
 
 ```bash
-npm run dist
+yarn dist
 ```
 
 GitHub Actions 在 push 到 `master` 时执行发布流程：

@@ -186,7 +186,7 @@ Device Tag Monitor 至少展示：
 
 ## Manual Verification
 
-1. 运行 `npm run simulator:start`。
+1. 运行 `yarn simulator:start`。
 2. 运行 Electron HMI。
 3. 打开 Device 页面，点击 `Connect`。
 4. Dashboard 应开始显示 Temperature、Level、Pressure、RPM、Running State、Mode、Production Count。

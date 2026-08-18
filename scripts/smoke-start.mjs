@@ -2,30 +2,53 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-const binary = process.platform === 'win32'
-  ? join('node_modules', '.bin', 'electron-vite.cmd')
-  : join('node_modules', '.bin', 'electron-vite')
+const binExtension = process.platform === 'win32' ? '.cmd' : ''
+const electronViteBinary = join('node_modules', '.bin', `electron-vite${binExtension}`)
+const electronBinary = join('node_modules', '.bin', `electron${binExtension}`)
 
-if (!existsSync(binary)) {
-  console.error('electron-vite binary was not found. Run npm install first.')
-  process.exit(1)
+for (const binary of [electronViteBinary, electronBinary]) {
+  if (!existsSync(binary)) {
+    console.error(`${binary} was not found. Run yarn install first.`)
+    process.exit(1)
+  }
 }
 
-const child = spawn(binary, ['preview'], {
-  env: {
+await runCommand(electronViteBinary, ['build'], process.env, 30000)
+await runCommand(
+  electronBinary,
+  [join('out', 'main', 'index.js')],
+  {
     ...process.env,
     HMI_SMOKE_TEST: '1'
   },
-  stdio: 'inherit'
-})
+  15000
+)
 
-const timer = setTimeout(() => {
-  child.kill('SIGTERM')
-  console.error('Electron smoke start timed out.')
-  process.exit(1)
-}, 15000)
+function runCommand(command, args, env, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      env,
+      stdio: 'inherit'
+    })
 
-child.on('exit', (code) => {
-  clearTimeout(timer)
-  process.exit(code ?? 0)
-})
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM')
+      reject(new Error(`${command} ${args.join(' ')} timed out.`))
+    }, timeoutMs)
+
+    child.on('error', (error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+
+    child.on('exit', (code) => {
+      clearTimeout(timer)
+      if (code === 0) {
+        resolve()
+        return
+      }
+
+      reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'unknown'}.`))
+    })
+  })
+}

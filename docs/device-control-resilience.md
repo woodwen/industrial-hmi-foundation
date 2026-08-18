@@ -179,7 +179,7 @@ Simulator 故障注入只通过控制台命令或测试 helper 触发，不占�
 
 ## Acceptance Scenario
 
-1. 启动 Simulator：`npm run simulator:start`。
+1. 启动 Simulator：`yarn simulator:start`。
 2. 启动 HMI 并连接设备。
 3. Dashboard / Device Tag Monitor 显示实时采集，Quality 为 `Good`。
 4. 在 Simulator 输入 `disconnect`。
