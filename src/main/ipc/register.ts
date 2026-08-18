@@ -1,11 +1,25 @@
 import { app, ipcMain } from 'electron'
 
 import { toAppError } from '../../shared/app-error'
-import type { HmiResult } from '../../shared/hmi-api'
+import type {
+  DeviceReadResponse,
+  DeviceReadRequest,
+  DeviceStatus,
+  DeviceWriteRequest,
+  DeviceWriteResponse,
+  HmiResult
+} from '../../shared/hmi-api'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
+import { createDefaultDeviceManager } from '../device'
 import type { Logger } from '../logging/logger'
 import * as defaultUpdateManager from '../update-manager'
-import { parseErrorReportInput, parseLogEntryInput, parseOptionalStringPayload } from './input-validation'
+import {
+  parseDeviceReadRequest,
+  parseDeviceWriteRequest,
+  parseErrorReportInput,
+  parseLogEntryInput,
+  parseOptionalStringPayload
+} from './input-validation'
 
 type Handler<TResult> = (payload: unknown) => Promise<TResult> | TResult
 
@@ -17,9 +31,18 @@ export interface UpdateManagerApi {
   quitAndInstallUpdate(): void
 }
 
+export interface DeviceManagerApi {
+  connectDevice(): Promise<DeviceStatus>
+  disconnectDevice(): Promise<DeviceStatus>
+  getDeviceStatus(): DeviceStatus
+  readDeviceRegisters(request: DeviceReadRequest): Promise<DeviceReadResponse>
+  writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse>
+}
+
 export function registerIpcHandlers(
   logger: Logger,
-  updateManager: UpdateManagerApi = defaultUpdateManager
+  updateManager: UpdateManagerApi = defaultUpdateManager,
+  deviceManager: DeviceManagerApi = createDefaultDeviceManager(logger)
 ): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
     name: app.getName(),
@@ -78,6 +101,20 @@ export function registerIpcHandlers(
   handleIpc<void>(IPC_CHANNELS.updates.quitAndInstallUpdate, logger, () => {
     updateManager.quitAndInstallUpdate()
   })
+
+  handleIpc<DeviceStatus>(IPC_CHANNELS.devices.connect, logger, () => deviceManager.connectDevice())
+
+  handleIpc<DeviceStatus>(IPC_CHANNELS.devices.disconnect, logger, () => deviceManager.disconnectDevice())
+
+  handleIpc<DeviceStatus>(IPC_CHANNELS.devices.getStatus, logger, () => deviceManager.getDeviceStatus())
+
+  handleIpc<DeviceReadResponse>(IPC_CHANNELS.devices.readRegisters, logger, (payload) => (
+    deviceManager.readDeviceRegisters(parseDeviceReadRequest(payload, `ipc:${IPC_CHANNELS.devices.readRegisters}`))
+  ))
+
+  handleIpc<DeviceWriteResponse>(IPC_CHANNELS.devices.writeRegisters, logger, (payload) => (
+    deviceManager.writeDeviceRegisters(parseDeviceWriteRequest(payload, `ipc:${IPC_CHANNELS.devices.writeRegisters}`))
+  ))
 }
 
 function handleIpc<TResult>(

@@ -1,6 +1,11 @@
 import type {
   AppInfo,
   AppUpdateListener,
+  DeviceReadRequest,
+  DeviceReadResponse,
+  DeviceStatus,
+  DeviceWriteRequest,
+  DeviceWriteResponse,
   ErrorReportInput,
   HmiResult,
   LogEntryInput,
@@ -17,6 +22,11 @@ export interface HmiApiClient {
   openUpdateDownloadPage(version?: string): Promise<HmiResult<void>>
   quitAndInstallUpdate(): Promise<HmiResult<void>>
   onUpdateEvent(listener: AppUpdateListener): Unsubscribe
+  connectDevice(): Promise<HmiResult<DeviceStatus>>
+  disconnectDevice(): Promise<HmiResult<DeviceStatus>>
+  getDeviceStatus(): Promise<HmiResult<DeviceStatus>>
+  readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
+  writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>
 }
 
 export class AppApplicationService {
@@ -62,5 +72,25 @@ export class AppApplicationService {
 
   onUpdateEvent(listener: AppUpdateListener): Unsubscribe {
     return this.apiClient.onUpdateEvent(listener)
+  }
+
+  connectDevice(): Promise<HmiResult<DeviceStatus>> {
+    return this.apiClient.connectDevice()
+  }
+
+  disconnectDevice(): Promise<HmiResult<DeviceStatus>> {
+    return this.apiClient.disconnectDevice()
+  }
+
+  getDeviceStatus(): Promise<HmiResult<DeviceStatus>> {
+    return this.apiClient.getDeviceStatus()
+  }
+
+  readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>> {
+    return this.apiClient.readDeviceRegisters(request)
+  }
+
+  writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>> {
+    return this.apiClient.writeDeviceRegisters(request)
   }
 }

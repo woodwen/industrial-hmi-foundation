@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseErrorReportInput, parseLogEntryInput } from '../../src/main/ipc/input-validation'
+import {
+  parseDeviceReadRequest,
+  parseDeviceWriteRequest,
+  parseErrorReportInput,
+  parseLogEntryInput
+} from '../../src/main/ipc/input-validation'
 
 describe('IPC input validation', () => {
   it('accepts a valid renderer log entry payload', () => {
@@ -73,6 +78,49 @@ describe('IPC input validation', () => {
   it('rejects invalid renderer error report payloads', () => {
     expectInvalidPayload(() => {
       parseErrorReportInput(null, 'ipc:test')
+    })
+  })
+
+  it('accepts valid device read and write payloads', () => {
+    expect(parseDeviceReadRequest({
+      pointIds: ['currentTemperature', 'motorRpm', 'currentTemperature']
+    }, 'ipc:test')).toEqual({
+      pointIds: ['currentTemperature', 'motorRpm']
+    })
+
+    expect(parseDeviceWriteRequest({
+      pointId: 'targetTemperature',
+      value: 62.5
+    }, 'ipc:test')).toEqual({
+      pointId: 'targetTemperature',
+      value: 62.5
+    })
+
+    expect(parseDeviceWriteRequest({
+      pointId: 'deviceStartCommand',
+      value: true
+    }, 'ipc:test')).toEqual({
+      pointId: 'deviceStartCommand',
+      value: true
+    })
+  })
+
+  it('rejects invalid device payloads', () => {
+    expectInvalidPayload(() => {
+      parseDeviceReadRequest({
+        pointIds: []
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseDeviceReadRequest({
+        pointIds: ['unknownPoint']
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseDeviceWriteRequest({
+        pointId: 'targetTemperature',
+        value: '62.5'
+      }, 'ipc:test')
     })
   })
 })

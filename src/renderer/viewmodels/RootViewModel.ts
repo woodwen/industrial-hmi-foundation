@@ -20,6 +20,6 @@ export function createRootViewModel(apiClient: HmiApiClient = new HmiApiBrowserC
     app,
     updates: new AppUpdateViewModel(appService, () => app.language),
     dashboard: new DashboardViewModel(),
-    device: new DeviceViewModel()
+    device: new DeviceViewModel(appService, () => app.language)
   }
 }

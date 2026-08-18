@@ -4,6 +4,11 @@ import type {
   AppUpdateEvent,
   AppInfo,
   AppUpdateListener,
+  DeviceReadRequest,
+  DeviceReadResponse,
+  DeviceStatus,
+  DeviceWriteRequest,
+  DeviceWriteResponse,
   ErrorReportInput,
   HmiApi,
   HmiResult,
@@ -54,7 +59,7 @@ describe('Preload HMI API contract', () => {
     electronMocks.listeners.clear()
   })
 
-  it('exposes the foundation API shape only', () => {
+  it('exposes the typed HMI API shape only', () => {
     expectTypeOf<HmiApi['app']['getInfo']>().returns.toEqualTypeOf<Promise<HmiResult<AppInfo>>>()
     expectTypeOf<HmiApi['log']['write']>().parameters.toEqualTypeOf<[LogEntryInput]>()
     expectTypeOf<HmiApi['log']['write']>().returns.toEqualTypeOf<Promise<HmiResult<void>>>()
@@ -67,6 +72,37 @@ describe('Preload HMI API contract', () => {
     expectTypeOf<HmiApi['updates']['quitAndInstallUpdate']>().returns.toEqualTypeOf<Promise<HmiResult<void>>>()
     expectTypeOf<HmiApi['updates']['onUpdateEvent']>().parameters.toEqualTypeOf<[AppUpdateListener]>()
     expectTypeOf<HmiApi['updates']['onUpdateEvent']>().returns.toEqualTypeOf<() => void>()
+    expectTypeOf<HmiApi['devices']['connect']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
+    expectTypeOf<HmiApi['devices']['disconnect']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
+    expectTypeOf<HmiApi['devices']['getStatus']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
+    expectTypeOf<HmiApi['devices']['readRegisters']>().parameters.toEqualTypeOf<[DeviceReadRequest]>()
+    expectTypeOf<HmiApi['devices']['readRegisters']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceReadResponse>>>()
+    expectTypeOf<HmiApi['devices']['writeRegisters']>().parameters.toEqualTypeOf<[DeviceWriteRequest]>()
+    expectTypeOf<HmiApi['devices']['writeRegisters']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceWriteResponse>>>()
+  })
+
+  it('routes device methods through dedicated IPC channels', async () => {
+    await import('../../src/preload/index')
+    const hmiApi = electronMocks.exposedApis.get('hmi') as HmiApi
+    const readRequest: DeviceReadRequest = {
+      pointIds: ['currentTemperature']
+    }
+    const writeRequest: DeviceWriteRequest = {
+      pointId: 'targetTemperature',
+      value: 62.5
+    }
+
+    await hmiApi.devices.connect()
+    await hmiApi.devices.disconnect()
+    await hmiApi.devices.getStatus()
+    await hmiApi.devices.readRegisters(readRequest)
+    await hmiApi.devices.writeRegisters(writeRequest)
+
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.connect)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.disconnect)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.getStatus)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.readRegisters, readRequest)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.writeRegisters, writeRequest)
   })
 
   it('unsubscribes update event listeners from the preload bridge', async () => {

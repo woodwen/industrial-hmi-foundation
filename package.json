@@ -18,7 +18,10 @@
     "test": "vitest run",
     "build": "npm run typecheck && electron-vite build",
     "dist": "npm run build && electron-builder",
-    "smoke:start": "node scripts/smoke-start.mjs"
+    "smoke:start": "node scripts/smoke-start.mjs",
+    "simulator:build": "tsc -p tsconfig.simulator.json",
+    "simulator:start": "npm run simulator:build && node out/simulator/simulator/index.js",
+    "simulator:dev": "npm run simulator:start"
   },
   "dependencies": {
     "builder-util-runtime": "9.7.0",

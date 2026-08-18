@@ -372,6 +372,252 @@ button {
   border-right: 0;
 }
 
+.device-panel {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+  padding: 18px;
+  background: #ffffff;
+}
+
+.device-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.device-panel-heading h3,
+.device-panel-heading p {
+  margin: 0;
+}
+
+.device-panel-heading p,
+.device-panel-heading span {
+  color: #607589;
+  font-size: 13px;
+}
+
+.device-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primary-action,
+.secondary-action {
+  min-height: 38px;
+  border: 1px solid #c7d4e1;
+  border-radius: 6px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.primary-action {
+  border-color: #237e6e;
+  color: #ffffff;
+  background: #237e6e;
+}
+
+.primary-action:hover {
+  background: #1b685b;
+}
+
+.secondary-action {
+  color: #344960;
+  background: #ffffff;
+}
+
+.secondary-action:hover {
+  background: #eef5fb;
+}
+
+.primary-action:disabled,
+.secondary-action:disabled,
+.field-row input:disabled,
+.coil-control-row input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  min-height: 32px;
+  border: 1px solid #c7d4e1;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: #24384e;
+  background: #f4f7fb;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-connected {
+  border-color: #7fc6ac;
+  color: #0f5f4f;
+  background: #dff5ed;
+}
+
+.status-connecting,
+.status-reconnecting {
+  border-color: #e3c36d;
+  color: #6c4f09;
+  background: #fff4cd;
+}
+
+.status-fault {
+  border-color: #eeaaa8;
+  color: #8b2521;
+  background: #fff0ef;
+}
+
+.device-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+  background: #d8e0eb;
+}
+
+.device-status-grid div {
+  min-width: 0;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.device-status-grid dt {
+  color: #607589;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.device-status-grid dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #17202a;
+}
+
+.operation-message,
+.inline-error {
+  margin: 0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.operation-message {
+  color: #0f5f4f;
+  background: #e4f7ef;
+}
+
+.inline-error {
+  color: #8b2521;
+  background: #fff0ef;
+}
+
+.device-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+}
+
+.device-value-list {
+  display: grid;
+  overflow: auto;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+}
+
+.device-value-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.3fr) minmax(96px, 0.7fr) minmax(110px, 0.8fr) minmax(96px, 0.7fr);
+  min-width: 620px;
+  border-bottom: 1px solid #d8e0eb;
+}
+
+.device-value-list.compact .device-value-row {
+  grid-template-columns: minmax(160px, 1fr) minmax(92px, 0.6fr) minmax(80px, 0.5fr);
+  min-width: 420px;
+}
+
+.device-value-row:last-child {
+  border-bottom: 0;
+}
+
+.device-value-header {
+  color: #41576d;
+  background: #e9eff6;
+  font-weight: 700;
+}
+
+.device-value-row span {
+  min-width: 0;
+  min-height: 40px;
+  border-right: 1px solid #d8e0eb;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.device-value-row span:last-child {
+  border-right: 0;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(120px, 160px) minmax(72px, auto);
+  align-items: center;
+  gap: 10px;
+}
+
+.field-row span {
+  color: #344960;
+  font-weight: 700;
+}
+
+.field-row input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #c7d4e1;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.coil-control-list {
+  display: grid;
+  gap: 8px;
+}
+
+.coil-control-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) minmax(64px, auto);
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #f8fafc;
+}
+
+.coil-control-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.coil-control-row small {
+  color: #607589;
+}
+
 .trend-grid {
   position: relative;
   min-height: 260px;
@@ -653,8 +899,14 @@ button {
   }
 
   .metrics-grid,
+  .device-grid,
+  .device-status-grid,
   .module-table-header,
   .module-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row {
     grid-template-columns: 1fr;
   }
 

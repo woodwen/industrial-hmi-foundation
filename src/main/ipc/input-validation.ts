@@ -1,5 +1,13 @@
 import { createAppError } from '../../shared/app-error'
-import type { ErrorReportInput, LogCategory, LogEntryInput, LogLevel } from '../../shared/hmi-api'
+import type {
+  DeviceReadRequest,
+  DeviceWriteRequest,
+  ErrorReportInput,
+  LogCategory,
+  LogEntryInput,
+  LogLevel
+} from '../../shared/hmi-api'
+import { isModbusPointId, type ModbusEngineeringValue, type ModbusPointId } from '../../shared/modbus'
 
 const LOG_CATEGORIES: readonly LogCategory[] = ['application', 'communication', 'error']
 const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error']
@@ -35,6 +43,24 @@ export function parseErrorReportInput(payload: unknown, source: string): ErrorRe
 
 export function parseOptionalStringPayload(payload: unknown, message: string, source: string): string | undefined {
   return parseOptionalString(payload, message, source)
+}
+
+export function parseDeviceReadRequest(payload: unknown, source: string): DeviceReadRequest {
+  const record = requireRecord(payload, 'Device read payload must be an object.', source)
+  const pointIds = requirePointIdArray(record.pointIds, source)
+
+  return {
+    pointIds
+  }
+}
+
+export function parseDeviceWriteRequest(payload: unknown, source: string): DeviceWriteRequest {
+  const record = requireRecord(payload, 'Device write payload must be an object.', source)
+
+  return {
+    pointId: requirePointId(record.pointId, source),
+    value: requireEngineeringValue(record.value, source)
+  }
 }
 
 function requireRecord(payload: unknown, message: string, source: string): Record<string, unknown> {
@@ -76,6 +102,35 @@ function requireOneOf<TAllowed extends string>(
   }
 
   throwInvalidPayload(message, source)
+}
+
+function requirePointId(value: unknown, source: string): ModbusPointId {
+  if (isModbusPointId(value)) {
+    return value
+  }
+
+  throwInvalidPayload('Device point id is invalid.', source)
+}
+
+function requirePointIdArray(value: unknown, source: string): ModbusPointId[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throwInvalidPayload('Device read pointIds must be a non-empty array.', source)
+  }
+
+  const pointIds = value.map((entry) => requirePointId(entry, source))
+  return Array.from(new Set(pointIds))
+}
+
+function requireEngineeringValue(value: unknown, source: string): ModbusEngineeringValue {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  throwInvalidPayload('Device write value must be a finite number or boolean.', source)
 }
 
 function parseLogContext(value: unknown, source: string): LogEntryInput['context'] {

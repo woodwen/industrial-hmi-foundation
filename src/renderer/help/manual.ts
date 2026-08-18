@@ -14,7 +14,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '应用定位',
       paragraphs: [
         'Industrial HMI Foundation 是工业自动化上位机/HMI 的 Electron 基础工程，用于学习、面试展示和后续能力演进。',
-        '当前版本聚焦桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程。'
+        '当前版本在基础桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程之上，加入模拟 PLC 的 Modbus TCP 手工链路验证。'
       ],
       bullets: [
         'Renderer 是受限 UI 层，只通过 window.hmi 访问桌面能力。',
@@ -28,7 +28,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['左侧导航提供 Dashboard、Device、Alarm、Trend、Recipe、Tag Management 和 Settings 页面骨架。'],
       bullets: [
         'Dashboard 展示未来现场总览的结构位置。',
-        'Device 为后续设备连接和协议适配器预留。',
+        'Device 可以连接独立启动的模拟 PLC，并手工读取过程值、写入目标温度/手动转速、控制 Coil。',
         'Alarm、Trend、Recipe 和 Tag Management 当前只展示占位结构。',
         'Settings 当前展示日志与错误上报基础项。'
       ]
@@ -49,7 +49,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['项目提供 application、communication 和 error 三类日志基础，并使用统一错误模型跨层传递错误。'],
       bullets: [
         'application log 用于应用生命周期和用户操作摘要。',
-        'communication log 为后续工业协议通信摘要预留。',
+        'communication log 记录设备连接、断开、手工读写、超时和通信错误摘要。',
         'error log 用于 IPC、Main 和 Renderer 顶层错误。',
         '错误 shape 包含 code、message、detail、source 和 cause。'
       ]
@@ -67,19 +67,19 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
     {
       id: 'manual-scope',
       title: '当前边界',
-      paragraphs: ['当前版本不是生产控制系统，也不会连接真实设备。'],
+      paragraphs: ['当前版本不是生产控制系统，设备通信仅用于连接本项目提供的模拟 PLC 或兼容测试端点。'],
       bullets: [
-        '尚未实现 Modbus TCP、OPC UA 或 PLC Simulator。',
-        '尚未实现实时采集、报警处理、历史趋势存储或配方执行。',
+        '已实现独立 PLC Simulator、Modbus TCP adapter、DeviceManager 和 Device 页面手工验证。',
+        '尚未实现自动轮询、TagCache、报警处理、历史趋势存储、配方执行、自动重连或 OPC UA。',
         '后续工业能力应通过独立 OpenSpec change 增量实现。'
       ]
     },
     {
       id: 'manual-faq',
       title: '常见问题',
-      paragraphs: ['如果界面只显示占位内容，这是当前基础阶段的预期状态。'],
+      paragraphs: ['如果 Device 页面无法读取数据，先确认 PLC Simulator 已独立启动。'],
       bullets: [
-        '看不到真实设备数据：当前尚未实现设备连接和采集。',
+        '看不到设备数据：运行 npm run simulator:start 后再在 Device 页面手工 Connect。',
         '检查更新提示开发环境：请使用 packaged 应用验证真实更新检查。',
         '版本更新说明为空：请确认 CHANGELOG.md 中存在当前版本区块。'
       ]
@@ -91,7 +91,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'Purpose',
       paragraphs: [
         'Industrial HMI Foundation is an Electron foundation for an industrial HMI desktop application.',
-        'This version focuses on the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
+        'This version adds manual Modbus TCP verification for a simulated PLC on top of the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
       ],
       bullets: [
         'Renderer is a restricted UI layer and accesses desktop capabilities only through window.hmi.',
@@ -105,7 +105,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['The sidebar provides Dashboard, Device, Alarm, Trend, Recipe, Tag Management, and Settings frames.'],
       bullets: [
         'Dashboard reserves the future plant overview area.',
-        'Device reserves future device connections and protocol adapters.',
+        'Device can connect to the independently started simulated PLC, manually read process values, write target temperature/manual RPM, and control coils.',
         'Alarm, Trend, Recipe, and Tag Management currently show structural placeholders.',
         'Settings currently exposes logging and error reporting basics.'
       ]
@@ -126,7 +126,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['The project provides application, communication, and error log categories with a unified error shape.'],
       bullets: [
         'Application logs capture lifecycle and user operation summaries.',
-        'Communication logs are reserved for future industrial protocol summaries.',
+        'Communication logs capture device connect, disconnect, manual reads, writes, timeouts, and communication errors.',
         'Error logs capture IPC, Main, and Renderer top-level errors.',
         'The error shape contains code, message, detail, source, and cause.'
       ]
@@ -144,19 +144,19 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
     {
       id: 'manual-scope',
       title: 'Current Scope',
-      paragraphs: ['This version is not a production control system and does not connect to real devices.'],
+      paragraphs: ['This version is not a production control system. Device communication is intended for the bundled PLC Simulator or a compatible test endpoint.'],
       bullets: [
-        'Modbus TCP, OPC UA, and PLC Simulator are not implemented.',
-        'Realtime collection, alarm processing, historian storage, and recipe execution are not implemented.',
+        'PLC Simulator, Modbus TCP adapter, DeviceManager, and Device page manual verification are implemented.',
+        'Automatic polling, TagCache, alarm processing, historian storage, recipe execution, automatic reconnect, and OPC UA are not implemented.',
         'Future industrial capabilities should be added through separate OpenSpec changes.'
       ]
     },
     {
       id: 'manual-faq',
       title: 'FAQ',
-      paragraphs: ['Placeholder content is expected in the current foundation stage.'],
+      paragraphs: ['If Device cannot read data, confirm the PLC Simulator is running independently.'],
       bullets: [
-        'No live device data: device connection and polling are not implemented yet.',
+        'No device data: run npm run simulator:start, then use Connect on the Device page.',
         'Development update status: use a packaged app to verify real update checks.',
         'Empty version notes: confirm CHANGELOG.md contains a current version section.'
       ]

@@ -8,6 +8,7 @@
 
 - 建立 Industrial HMI Foundation 的产品可交付基础：中英文 UI、应用内帮助、版本更新说明、检查更新和 GitHub Release 打包发布流程。
 - 新增根目录 `AGENTS.md`、`README.md` 和 `CHANGELOG.md`，补齐协作说明、项目说明和版本记录来源。
+- 新增独立 PLC Simulator、Modbus TCP 协议适配器和 Device 页面手工连接/读写验证能力。
 
 ### Changed
 
@@ -20,4 +21,4 @@
 
 ### Notes
 
-- 当前版本仍是工业 HMI 基础架构和页面骨架，不包含真实 Modbus、OPC UA、设备连接、采集、报警、历史趋势或配方执行。
+- 当前版本支持连接本项目模拟 PLC 验证 Modbus TCP 链路，但不包含真实生产设备采集、OPC UA、报警、历史趋势或配方执行。

@@ -15,5 +15,12 @@ export const IPC_CHANNELS = {
     openUpdateDownloadPage: 'hmi:updates:open-download-page',
     quitAndInstallUpdate: 'hmi:updates:quit-and-install',
     event: 'hmi:updates:event'
+  },
+  devices: {
+    connect: 'hmi:devices:connect',
+    disconnect: 'hmi:devices:disconnect',
+    getStatus: 'hmi:devices:get-status',
+    readRegisters: 'hmi:devices:read-registers',
+    writeRegisters: 'hmi:devices:write-registers'
   }
 } as const

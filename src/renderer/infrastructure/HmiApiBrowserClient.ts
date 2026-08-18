@@ -1,6 +1,11 @@
 import type {
   AppInfo,
   AppUpdateListener,
+  DeviceReadRequest,
+  DeviceReadResponse,
+  DeviceStatus,
+  DeviceWriteRequest,
+  DeviceWriteResponse,
   ErrorReportInput,
   HmiResult,
   LogEntryInput,
@@ -43,5 +48,25 @@ export class HmiApiBrowserClient implements HmiApiClient {
 
   onUpdateEvent(listener: AppUpdateListener): Unsubscribe {
     return window.hmi.updates.onUpdateEvent(listener)
+  }
+
+  connectDevice(): Promise<HmiResult<DeviceStatus>> {
+    return window.hmi.devices.connect()
+  }
+
+  disconnectDevice(): Promise<HmiResult<DeviceStatus>> {
+    return window.hmi.devices.disconnect()
+  }
+
+  getDeviceStatus(): Promise<HmiResult<DeviceStatus>> {
+    return window.hmi.devices.getStatus()
+  }
+
+  readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>> {
+    return window.hmi.devices.readRegisters(request)
+  }
+
+  writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>> {
+    return window.hmi.devices.writeRegisters(request)
   }
 }

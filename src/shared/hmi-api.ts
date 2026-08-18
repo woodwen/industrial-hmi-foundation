@@ -1,4 +1,5 @@
 import type { AppErrorShape } from './app-error'
+import type { ModbusEngineeringValue, ModbusPointId, ModbusRawValue, ModbusRegisterArea } from './modbus'
 
 export type LogCategory = 'application' | 'communication' | 'error'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -52,6 +53,63 @@ export interface AppUpdateState {
   progress?: UpdateProgress
 }
 
+export type DeviceConnectionStatus =
+  | 'Disconnected'
+  | 'Connecting'
+  | 'Connected'
+  | 'Reconnecting'
+  | 'Fault'
+
+export interface DeviceEndpoint {
+  host: string
+  port: number
+  unitId: number
+}
+
+export interface DeviceStatus {
+  deviceId: string
+  name: string
+  protocol: 'modbusTcp'
+  connectionStatus: DeviceConnectionStatus
+  endpoint: DeviceEndpoint
+  lastSuccessfulAt?: string
+  lastError?: AppErrorShape
+}
+
+export interface DeviceReadRequest {
+  pointIds: ModbusPointId[]
+}
+
+export interface DevicePointValue {
+  pointId: ModbusPointId
+  area: ModbusRegisterArea
+  referenceAddress: string
+  pduAddress: number
+  value: ModbusEngineeringValue
+  rawValues: ModbusRawValue[]
+  formattedValue: string
+  unit: string
+  writable: boolean
+  timestamp: string
+}
+
+export interface DeviceReadResponse {
+  deviceId: string
+  values: DevicePointValue[]
+  timestamp: string
+}
+
+export interface DeviceWriteRequest {
+  pointId: ModbusPointId
+  value: ModbusEngineeringValue
+}
+
+export interface DeviceWriteResponse {
+  deviceId: string
+  point: DevicePointValue
+  timestamp: string
+}
+
 export type AppUpdateEvent =
   | { type: 'checking' }
   | { type: 'available'; version: string }
@@ -92,5 +150,12 @@ export interface HmiApi {
     openUpdateDownloadPage(version?: string): Promise<HmiResult<void>>
     quitAndInstallUpdate(): Promise<HmiResult<void>>
     onUpdateEvent(listener: AppUpdateListener): Unsubscribe
+  }
+  devices: {
+    connect(): Promise<HmiResult<DeviceStatus>>
+    disconnect(): Promise<HmiResult<DeviceStatus>>
+    getStatus(): Promise<HmiResult<DeviceStatus>>
+    readRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
+    writeRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>
   }
 }

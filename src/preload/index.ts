@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
-import type { AppUpdateEvent, AppUpdateListener, ErrorReportInput, HmiApi, LogEntryInput } from '../shared/hmi-api'
+import type {
+  AppUpdateEvent,
+  AppUpdateListener,
+  DeviceReadRequest,
+  DeviceWriteRequest,
+  ErrorReportInput,
+  HmiApi,
+  LogEntryInput
+} from '../shared/hmi-api'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 
 const hmiApi: HmiApi = {
@@ -32,6 +40,19 @@ const hmiApi: HmiApi = {
         ipcRenderer.removeListener(IPC_CHANNELS.updates.event, wrappedListener)
       }
     }
+  },
+  devices: {
+    connect: () => ipcRenderer.invoke(IPC_CHANNELS.devices.connect),
+    disconnect: () => ipcRenderer.invoke(IPC_CHANNELS.devices.disconnect),
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.devices.getStatus),
+    readRegisters: (request: DeviceReadRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.devices.readRegisters,
+      request
+    ),
+    writeRegisters: (request: DeviceWriteRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.devices.writeRegisters,
+      request
+    )
   }
 }
 
