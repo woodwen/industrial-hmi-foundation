@@ -38,6 +38,38 @@ export function extractChangelogSection(markdown, version) {
   return notes
 }
 
+export function getTopUnreleasedVersion(markdown) {
+  if (typeof markdown !== 'string') {
+    throw new Error('CHANGELOG content must be a string')
+  }
+
+  const firstVersionHeading = markdown.match(/^##\s+(.+)$/m)
+  if (!firstVersionHeading) {
+    throw new Error('CHANGELOG.md must contain a top Unreleased version heading')
+  }
+
+  const heading = firstVersionHeading[1].trim()
+  const match = heading.match(/^Unreleased\s*\/\s*((0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))$/)
+  if (!match) {
+    throw new Error('CHANGELOG.md top version heading must use "## Unreleased / X.Y.Z"')
+  }
+
+  return match[1]
+}
+
+export function assertPackageChangelogVersion(markdown, packageVersion) {
+  assertStableVersion(packageVersion)
+
+  const changelogVersion = getTopUnreleasedVersion(markdown)
+  if (changelogVersion !== packageVersion) {
+    throw new Error(
+      `CHANGELOG.md top Unreleased version ${changelogVersion} must match package.json version ${packageVersion}`
+    )
+  }
+
+  return changelogVersion
+}
+
 export function readPackageVersion(packageJsonPath = resolve(process.cwd(), 'package.json')) {
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
   return packageJson.version
@@ -46,12 +78,19 @@ export function readPackageVersion(packageJsonPath = resolve(process.cwd(), 'pac
 export function readChangelogReleaseNotes({
   changelogPath = resolve(process.cwd(), 'CHANGELOG.md'),
   packageJsonPath = resolve(process.cwd(), 'package.json'),
-  version = readPackageVersion(packageJsonPath)
+  version,
+  requireCurrentUnreleasedVersion = version === undefined
 } = {}) {
+  const packageVersion = readPackageVersion(packageJsonPath)
+  const releaseVersion = version ?? packageVersion
   const changelog = readFileSync(changelogPath, 'utf8')
+  if (requireCurrentUnreleasedVersion) {
+    assertPackageChangelogVersion(changelog, packageVersion)
+  }
+
   return {
-    version,
-    notes: extractChangelogSection(changelog, version)
+    version: releaseVersion,
+    notes: extractChangelogSection(changelog, releaseVersion)
   }
 }
 

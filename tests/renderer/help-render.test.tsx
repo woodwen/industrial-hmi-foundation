@@ -49,7 +49,7 @@ describe('Renderer help views', () => {
     const markup = renderApp(rootViewModel)
 
     expect(markup).toContain('版本更新说明')
-    expect(markup).toContain('当前版本 0.1.0')
+    expect(markup).toContain('当前版本 0.1.1')
     expect(markup).toContain('Industrial HMI Foundation 的产品可交付基础')
   })
 })

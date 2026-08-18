@@ -97,5 +97,15 @@ GitHub Actions 在 push 到 `master` 时执行发布流程：
 2. 运行 typecheck、lint、test、changelog release notes 校验和 build。
 3. 在 macOS、Windows、Linux 上打包。
 4. 创建 `v<version>` GitHub Release 并上传 artifacts。
+5. 发布完成后在既有 `dev` 分支准备下一开发版本。
 
 默认只发布 GitHub Releases 和安装包 artifacts，不发布 GitHub Packages。
+
+## 版本策略
+
+- `package.json` 的 `version` 是唯一发布版本来源，只使用稳定 SemVer `X.Y.Z`。
+- Git tag 和 GitHub Release title 均使用 `v<package.json version>`。
+- `CHANGELOG.md` 顶部必须是 `## Unreleased / <package.json version>`，且该区块需要包含非空 release notes。
+- 已发布版本区块使用 `## v<version> - YYYY-MM-DD`，日期为 UTC release finalized 日期。
+- `master` 保持刚发布的稳定版本；`dev` 持有下一开发版本，默认递增 patch，patch/minor 到 `100` 后按规则进位。
+- 当前不支持 prerelease、nightly、build metadata 或 conventional commits 自动推导版本；需要升 minor/major 时由维护者显式修改版本。

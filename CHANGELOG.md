@@ -2,7 +2,7 @@
 
 所有用户可见变更都记录在此文件中。当前版本区块同时作为应用内版本更新说明和 GitHub Release notes 的来源。
 
-## Unreleased / 0.1.0
+## Unreleased / 0.1.1
 
 ### Added
 
@@ -12,6 +12,11 @@
 ### Changed
 
 - 将应用默认语言明确为中文，并为英文演示保留可切换文案和中文回退。
+- 明确 release version 以 `package.json` 的稳定 SemVer 为唯一来源，并要求 changelog 顶部版本与 package 版本保持一致。
+
+### Build
+
+- 补强 GitHub Release workflow：release title 使用 `v<version>`，发布后在既有 `dev` 分支准备下一开发版本。
 
 ### Notes
 
