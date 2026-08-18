@@ -27,7 +27,7 @@ export const DevicePage = observer(() => {
           <button
             type="button"
             className="primary-action"
-            disabled={device.isBusy || device.isConnected}
+            disabled={!device.canConnect}
             onClick={() => {
               void device.connect()
             }}
@@ -37,7 +37,7 @@ export const DevicePage = observer(() => {
           <button
             type="button"
             className="secondary-action"
-            disabled={device.isBusy || !device.isConnected}
+            disabled={!device.canDisconnect}
             onClick={() => {
               void device.disconnect()
             }}
@@ -83,10 +83,21 @@ export const DevicePage = observer(() => {
             <dt>{app.t('device.status.lastError')}</dt>
             <dd>{device.status.lastError?.message ?? '-'}</dd>
           </div>
+          <div>
+            <dt>{app.t('device.status.lastTransition')}</dt>
+            <dd>{device.status.lastTransitionAt ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>{app.t('device.status.transitionReason')}</dt>
+            <dd>{device.status.transitionReason ?? '-'}</dd>
+          </div>
         </dl>
 
         {device.operationMessageKey ? (
           <p className="operation-message">{app.t(device.operationMessageKey)}</p>
+        ) : null}
+        {!device.operationMessageKey && device.commandResultMessage ? (
+          <p className="operation-message">{device.commandResultMessage}</p>
         ) : null}
         {device.statusErrorMessage ? (
           <p className="inline-error" role="alert">{device.statusErrorMessage}</p>
@@ -159,13 +170,13 @@ export const DevicePage = observer(() => {
               max="90"
               step="0.1"
               value={device.targetTemperatureInput}
-              disabled={!device.isConnected || device.writingPointId === 'targetTemperature'}
+              disabled={!device.canExecuteCommand || device.writingPointId === 'targetTemperature'}
               onChange={(event) => device.setTargetTemperatureInput(event.currentTarget.value)}
             />
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.isConnected || device.writingPointId !== null}
+              disabled={!device.canExecuteCommand}
               onClick={() => {
                 void device.writeTargetTemperature()
               }}
@@ -182,13 +193,13 @@ export const DevicePage = observer(() => {
               max="1800"
               step="1"
               value={device.manualMotorRpmInput}
-              disabled={!device.isConnected || device.writingPointId === 'manualMotorRpmSetpoint'}
+              disabled={!device.canExecuteCommand || device.writingPointId === 'manualMotorRpmSetpoint'}
               onChange={(event) => device.setManualMotorRpmInput(event.currentTarget.value)}
             />
             <button
               type="button"
               className="secondary-action"
-              disabled={!device.isConnected || device.writingPointId !== null}
+              disabled={!device.canExecuteCommand}
               onClick={() => {
                 void device.writeManualMotorRpm()
               }}
@@ -203,7 +214,52 @@ export const DevicePage = observer(() => {
         <div className="device-panel">
           <div className="device-panel-heading">
             <h3>{app.t('device.controls.title')}</h3>
-            <span>{app.t('device.controls.coils')}</span>
+            <span>{app.t('device.controls.commandService')}</span>
+          </div>
+          {device.controlNoticeKey ? (
+            <p className="inline-error">{app.t(device.controlNoticeKey)}</p>
+          ) : null}
+          <div className="command-button-grid" aria-label={app.t('device.controls.device')}>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canExecuteCommand}
+              onClick={() => {
+                void device.startDevice()
+              }}
+            >
+              {app.t('device.controls.start')}
+            </button>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canExecuteCommand}
+              onClick={() => {
+                void device.stopDevice()
+              }}
+            >
+              {app.t('device.controls.stop')}
+            </button>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canExecuteCommand}
+              onClick={() => {
+                void device.startMotor()
+              }}
+            >
+              {app.t('device.controls.motorStart')}
+            </button>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canExecuteCommand}
+              onClick={() => {
+                void device.stopMotor()
+              }}
+            >
+              {app.t('device.controls.motorStop')}
+            </button>
           </div>
           <div className="coil-control-list">
             {device.coilControls.map((control) => (

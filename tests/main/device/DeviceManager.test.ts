@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { DeviceManager, DEFAULT_SIMULATED_DEVICE_CONFIG } from '../../../src/main/device'
+import {
+  DeviceManager,
+  DEFAULT_RECONNECT_BACKOFF_MS,
+  DEFAULT_SIMULATED_DEVICE_CONFIG
+} from '../../../src/main/device'
 import type { Logger } from '../../../src/main/logging/logger'
 import { DEVICE_ERROR_CODES } from '../../../src/main/protocol/errors'
 import type {
@@ -12,9 +16,14 @@ import type {
   ProtocolWriteRequest,
   ProtocolWriteResult
 } from '../../../src/main/protocol/types'
+import type { AppErrorShape } from '../../../src/shared/app-error'
 import type { ModbusRawValue } from '../../../src/shared/modbus'
 
 describe('DeviceManager', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('connects and disconnects the default simulated PLC through IProtocolAdapter', async () => {
     const adapter = new FakeProtocolAdapter()
     const manager = new DeviceManager({
@@ -35,6 +44,42 @@ describe('DeviceManager', () => {
     await expect(manager.disconnectDevice()).resolves.toMatchObject({
       connectionStatus: 'Disconnected'
     })
+  })
+
+  it('ignores connect requests that do not match the state machine', async () => {
+    const adapter = new FakeProtocolAdapter()
+    const manager = new DeviceManager({
+      adapter,
+      logger: createLogger(),
+      reconnectBackoffMs: [10000]
+    })
+
+    await manager.connectDevice()
+    await expect(manager.connectDevice()).resolves.toMatchObject({
+      connectionStatus: 'Connected'
+    })
+    expect(adapter.connectCalls).toBe(1)
+
+    manager.handleCommunicationFailure(new Error('socket closed'))
+    await expect(manager.connectDevice()).resolves.toMatchObject({
+      connectionStatus: 'Reconnecting'
+    })
+    expect(adapter.connectCalls).toBe(1)
+
+    manager.dispose()
+  })
+
+  it('disconnects the adapter when disposed', async () => {
+    const adapter = new FakeProtocolAdapter()
+    const manager = new DeviceManager({
+      adapter,
+      logger: createLogger()
+    })
+
+    await manager.connectDevice()
+    manager.dispose()
+
+    expect(adapter.disconnectCalls).toBe(1)
   })
 
   it('reads configured points and decodes engineering values', async () => {
@@ -84,6 +129,7 @@ describe('DeviceManager', () => {
       logger: createLogger()
     })
 
+    await manager.connectDevice()
     await expect(manager.writeDeviceRegisters({
       pointId: 'currentTemperature',
       value: 60
@@ -91,6 +137,7 @@ describe('DeviceManager', () => {
       code: DEVICE_ERROR_CODES.writeRejected
     })
     expect(adapter.writeRequests).toEqual([])
+    expect(manager.getDeviceStatus().connectionStatus).toBe('Connected')
   })
 
   it('encodes writable holding register values and returns read-back data', async () => {
@@ -121,26 +168,105 @@ describe('DeviceManager', () => {
     ])
   })
 
-  it('reports adapter fault state through device status', () => {
+  it('moves from Connected to Reconnecting and restores Connected through bounded backoff', async () => {
+    vi.useFakeTimers()
     const adapter = new FakeProtocolAdapter()
     const manager = new DeviceManager({
       adapter,
-      logger: createLogger()
+      logger: createLogger(),
+      reconnectBackoffMs: DEFAULT_RECONNECT_BACKOFF_MS
     })
 
-    adapter.status.connectionStatus = 'Fault'
-    adapter.status.lastError = {
-      code: DEVICE_ERROR_CODES.connectionLost,
-      message: 'Device connection was lost.',
+    await manager.connectDevice()
+    adapter.connectFailuresRemaining = 1
+    manager.handleCommunicationFailure(new Error('socket closed'))
+
+    expect(manager.getDeviceStatus()).toMatchObject({
+      connectionStatus: 'Reconnecting',
+      lastError: {
+        message: 'socket closed'
+      }
+    })
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(manager.getDeviceStatus().connectionStatus).toBe('Reconnecting')
+    expect(adapter.connectCalls).toBe(2)
+
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(manager.getDeviceStatus().connectionStatus).toBe('Connected')
+    expect(adapter.connectCalls).toBe(3)
+    manager.dispose()
+  })
+
+  it('keeps initial connect failure in Fault without starting automatic reconnect', async () => {
+    vi.useFakeTimers()
+    const adapter = new FakeProtocolAdapter()
+    adapter.connectFailuresRemaining = 1
+    const manager = new DeviceManager({
+      adapter,
+      logger: createLogger(),
+      reconnectBackoffMs: [1]
+    })
+
+    await expect(manager.connectDevice()).rejects.toMatchObject({
+      message: 'simulated connect failure'
+    })
+    expect(manager.getDeviceStatus().connectionStatus).toBe('Fault')
+
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(adapter.connectCalls).toBe(1)
+    manager.dispose()
+  })
+
+  it('cancels reconnect attempts on manual disconnect', async () => {
+    vi.useFakeTimers()
+    const adapter = new FakeProtocolAdapter()
+    const manager = new DeviceManager({
+      adapter,
+      logger: createLogger(),
+      reconnectBackoffMs: [1000]
+    })
+
+    await manager.connectDevice()
+    manager.handleCommunicationFailure(new Error('socket closed'))
+    await manager.disconnectDevice()
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(manager.getDeviceStatus().connectionStatus).toBe('Disconnected')
+    expect(adapter.connectCalls).toBe(1)
+  })
+
+  it('moves reconnect to Fault when a reconnect attempt fails with an unrecoverable error', async () => {
+    vi.useFakeTimers()
+    const adapter = new FakeProtocolAdapter()
+    const manager = new DeviceManager({
+      adapter,
+      logger: createLogger(),
+      reconnectBackoffMs: [1000]
+    })
+
+    await manager.connectDevice()
+    adapter.connectError = {
+      code: DEVICE_ERROR_CODES.illegalAddress,
+      message: 'Configured device address is invalid.',
       source: 'test'
     }
+    manager.handleCommunicationFailure(new Error('socket closed'))
+
+    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(5000)
 
     expect(manager.getDeviceStatus()).toMatchObject({
       connectionStatus: 'Fault',
       lastError: {
-        code: DEVICE_ERROR_CODES.connectionLost
+        code: DEVICE_ERROR_CODES.illegalAddress
       }
     })
+    expect(adapter.connectCalls).toBe(2)
+    manager.dispose()
   })
 })
 
@@ -149,11 +275,24 @@ class FakeProtocolAdapter implements IProtocolAdapter {
     connectionStatus: 'Disconnected'
   }
   connectConfig: ProtocolConnectionConfig | null = null
+  connectCalls = 0
+  disconnectCalls = 0
+  connectFailuresRemaining = 0
+  connectError: AppErrorShape | null = null
   readRequests: ProtocolReadRequest[] = []
   writeRequests: ProtocolWriteRequest[] = []
   private readonly reads = new Map<string, ModbusRawValue[]>()
 
   async connect(config: ProtocolConnectionConfig): Promise<void> {
+    this.connectCalls += 1
+    if (this.connectFailuresRemaining > 0) {
+      this.connectFailuresRemaining -= 1
+      throw new Error('simulated connect failure')
+    }
+    if (this.connectError) {
+      throw this.connectError
+    }
+
     this.connectConfig = config
     this.status = {
       connectionStatus: 'Connected',
@@ -164,6 +303,7 @@ class FakeProtocolAdapter implements IProtocolAdapter {
   }
 
   async disconnect(): Promise<void> {
+    this.disconnectCalls += 1
     this.status = {
       connectionStatus: 'Disconnected'
     }

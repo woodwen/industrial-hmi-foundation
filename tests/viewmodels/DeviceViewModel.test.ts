@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { AppApplicationService, type HmiApiClient } from '../../src/renderer/application/AppApplicationService'
 import { DeviceViewModel } from '../../src/renderer/viewmodels/DeviceViewModel'
 import type { AppErrorShape } from '../../src/shared/app-error'
-import type { DevicePointValue, HmiResult } from '../../src/shared/hmi-api'
+import type { DeviceCommandResult, DevicePointValue, DeviceStateListener, HmiResult } from '../../src/shared/hmi-api'
 import type { ModbusPointId } from '../../src/shared/modbus'
 import { createApiClientStub, createDeviceStatus } from '../support/hmi-api-client-stub'
 
@@ -69,11 +69,11 @@ describe('DeviceViewModel', () => {
 
   it('writes target temperature and updates the input from read-back', async () => {
     const apiClient = createApiClientStub({
-      writeDeviceRegisters: vi.fn<HmiApiClient['writeDeviceRegisters']>().mockResolvedValue(success({
-        deviceId: 'simulated-mixer-plc',
-        point: createPointValue('targetTemperature', 62.5, [625], '62.5 °C'),
-        timestamp: '2026-08-18T00:00:00.000Z'
-      }))
+      executeCommand: vi.fn<HmiApiClient['executeCommand']>().mockResolvedValue(success(createCommandResult(
+        'setTargetTemperature',
+        'targetTemperature',
+        createPointValue('targetTemperature', 62.5, [625], '62.5 °C')
+      )))
     })
     const viewModel = createViewModel(apiClient)
     viewModel.status = createDeviceStatus('Connected')
@@ -81,34 +81,89 @@ describe('DeviceViewModel', () => {
 
     await viewModel.writeTargetTemperature()
 
-    expect(apiClient.writeDeviceRegisters).toHaveBeenCalledWith({
-      pointId: 'targetTemperature',
+    expect(apiClient.executeCommand).toHaveBeenCalledWith({
+      commandId: 'setTargetTemperature',
       value: 62.5
     })
     expect(viewModel.targetTemperatureInput).toBe('62.5')
-    expect(viewModel.operationMessageKey).toBe('device.operation.write')
+    expect(viewModel.operationMessageKey).toBe('device.operation.commandSucceeded')
   })
 
-  it('controls writable coils through predefined point ids', async () => {
+  it('controls writable commands through CommandService', async () => {
     const apiClient = createApiClientStub({
-      writeDeviceRegisters: vi.fn<HmiApiClient['writeDeviceRegisters']>().mockResolvedValue(success({
-        deviceId: 'simulated-mixer-plc',
-        point: createPointValue('deviceStartCommand', true, [true], 'ON'),
-        timestamp: '2026-08-18T00:00:00.000Z'
-      }))
+      executeCommand: vi.fn<HmiApiClient['executeCommand']>().mockResolvedValue(success(createCommandResult(
+        'setInletValve',
+        'inletValveCommand',
+        createPointValue('inletValveCommand', true, [true], 'ON')
+      )))
     })
     const viewModel = createViewModel(apiClient)
     viewModel.status = createDeviceStatus('Connected')
 
-    await viewModel.writeCoil('deviceStartCommand', true)
+    await viewModel.setInletValve(true)
 
-    expect(apiClient.writeDeviceRegisters).toHaveBeenCalledWith({
-      pointId: 'deviceStartCommand',
+    expect(apiClient.executeCommand).toHaveBeenCalledWith({
+      commandId: 'setInletValve',
       value: true
     })
     expect(viewModel.coilControls[0]).toMatchObject({
-      pointId: 'deviceStartCommand',
+      pointId: 'inletValveCommand',
       checked: true
+    })
+  })
+
+  it('subscribes to device state changes and clears listeners on dispose', async () => {
+    const listeners: DeviceStateListener[] = []
+    const unsubscribe = vi.fn()
+    const apiClient = createApiClientStub({
+      subscribeDeviceState: vi.fn<HmiApiClient['subscribeDeviceState']>((nextListener) => {
+        listeners.push(nextListener)
+        return unsubscribe
+      }),
+      getDeviceStatus: vi.fn<HmiApiClient['getDeviceStatus']>().mockResolvedValue(success(createDeviceStatus()))
+    })
+    const viewModel = createViewModel(apiClient)
+
+    await viewModel.initialize()
+    const listener = listeners[0]
+    if (!listener) {
+      throw new Error('Device state listener was not registered.')
+    }
+
+    listener({
+      ...createDeviceStatus('Reconnecting'),
+      emittedAt: '2026-08-18T00:00:01.000Z'
+    })
+
+    expect(viewModel.status.connectionStatus).toBe('Reconnecting')
+
+    viewModel.dispose()
+
+    expect(unsubscribe).toHaveBeenCalled()
+  })
+
+  it('allows reconnect cancellation without allowing a second connect request', () => {
+    const apiClient = createApiClientStub()
+    const viewModel = createViewModel(apiClient)
+
+    viewModel.status = createDeviceStatus('Reconnecting')
+
+    expect(viewModel.canConnect).toBe(false)
+    expect(viewModel.canDisconnect).toBe(true)
+    expect(viewModel.canExecuteCommand).toBe(false)
+  })
+
+  it('rejects out-of-range setpoint input before calling Main process', async () => {
+    const apiClient = createApiClientStub()
+    const viewModel = createViewModel(apiClient)
+    viewModel.status = createDeviceStatus('Connected')
+    viewModel.setTargetTemperatureInput('120')
+
+    await viewModel.writeTargetTemperature()
+
+    expect(apiClient.executeCommand).not.toHaveBeenCalled()
+    expect(viewModel.error).toMatchObject({
+      code: 'DEVICE_INVALID_INPUT'
     })
   })
 
@@ -171,6 +226,25 @@ function createPointValue(
   }
 }
 
+function createCommandResult(
+  commandId: DeviceCommandResult['commandId'],
+  targetPointId: DeviceCommandResult['targetPointId'],
+  point?: DevicePointValue
+): DeviceCommandResult {
+  return {
+    commandId,
+    deviceId: 'simulated-mixer-plc',
+    targetPointId,
+    status: 'succeeded',
+    writeAccepted: true,
+    verificationStatus: 'verified',
+    durationMs: 12,
+    message: `Command ${commandId} succeeded.`,
+    point,
+    timestamp: '2026-08-18T00:00:00.000Z'
+  }
+}
+
 function getPointMetadata(pointId: ModbusPointId): Pick<
   DevicePointValue,
   'area' | 'referenceAddress' | 'pduAddress' | 'unit' | 'writable'
@@ -210,6 +284,16 @@ function getPointMetadata(pointId: ModbusPointId): Pick<
       area: 'coil',
       referenceAddress: '00001',
       pduAddress: 0,
+      unit: '',
+      writable: true
+    }
+  }
+
+  if (pointId === 'inletValveCommand') {
+    return {
+      area: 'coil',
+      referenceAddress: '00003',
+      pduAddress: 2,
       unit: '',
       writable: true
     }

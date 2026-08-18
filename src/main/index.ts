@@ -46,7 +46,9 @@ void app.whenReady().then(() => {
     undefined,
     mainRuntime.deviceManager,
     mainRuntime,
-    mainRuntime.tagIpcPublisher
+    mainRuntime.tagIpcPublisher,
+    mainRuntime.commandService,
+    mainRuntime.deviceStateIpcPublisher
   )
   logger.write({
     category: 'application',

@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 
 import type { HmiApiClient } from '../../src/renderer/application/AppApplicationService'
 import type {
+  DeviceCommandResult,
   DeviceStatus,
   HmiResult
 } from '../../src/shared/hmi-api'
@@ -39,6 +40,7 @@ export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiA
     })),
     disconnectDevice: vi.fn<HmiApiClient['disconnectDevice']>().mockResolvedValue(success(defaultDeviceStatus)),
     getDeviceStatus: vi.fn<HmiApiClient['getDeviceStatus']>().mockResolvedValue(success(defaultDeviceStatus)),
+    subscribeDeviceState: vi.fn<HmiApiClient['subscribeDeviceState']>(() => () => undefined),
     readDeviceRegisters: vi.fn<HmiApiClient['readDeviceRegisters']>().mockResolvedValue(success({
       deviceId: SIMULATED_MIXER_DEVICE_ID,
       values: [],
@@ -60,6 +62,7 @@ export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiA
       },
       timestamp: '2026-08-18T00:00:00.000Z'
     })),
+    executeCommand: vi.fn<HmiApiClient['executeCommand']>().mockResolvedValue(success(createCommandResult())),
     getTagSnapshot: vi.fn<HmiApiClient['getTagSnapshot']>().mockResolvedValue(success(createTagSnapshot())),
     subscribeTagValues: vi.fn<HmiApiClient['subscribeTagValues']>(() => () => undefined),
     ...overrides
@@ -98,5 +101,31 @@ function createTagSnapshot(): TagSnapshot {
       timestamp: '2026-08-18T00:00:00.000Z'
     })),
     emittedAt: '2026-08-18T00:00:00.000Z'
+  }
+}
+
+function createCommandResult(): DeviceCommandResult {
+  return {
+    commandId: 'setTargetTemperature',
+    deviceId: SIMULATED_MIXER_DEVICE_ID,
+    targetPointId: 'targetTemperature',
+    status: 'succeeded',
+    writeAccepted: true,
+    verificationStatus: 'verified',
+    durationMs: 12,
+    message: 'Command setTargetTemperature succeeded.',
+    point: {
+      pointId: 'targetTemperature',
+      area: 'holdingRegister',
+      referenceAddress: '40001',
+      pduAddress: 0,
+      value: 60,
+      rawValues: [600],
+      formattedValue: '60.0 °C',
+      unit: '°C',
+      writable: true,
+      timestamp: '2026-08-18T00:00:00.000Z'
+    },
+    timestamp: '2026-08-18T00:00:00.000Z'
   }
 }

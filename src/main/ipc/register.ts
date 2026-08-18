@@ -2,8 +2,11 @@ import { app, ipcMain, type IpcMainInvokeEvent } from 'electron'
 
 import { toAppError } from '../../shared/app-error'
 import type {
+  DeviceCommandRequest,
+  DeviceCommandResult,
   DeviceReadResponse,
   DeviceReadRequest,
+  DeviceStateChangedEvent,
   DeviceStatus,
   DeviceWriteRequest,
   DeviceWriteResponse,
@@ -14,10 +17,12 @@ import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import { createDefaultDeviceManager } from '../device'
 import { TagCache, TagService } from '../tag'
 import type { Logger } from '../logging/logger'
+import { createDeviceError, DEVICE_ERROR_CODES } from '../protocol/errors'
 import * as defaultUpdateManager from '../update-manager'
 import {
   parseDeviceReadRequest,
   parseDeviceWriteRequest,
+  parseDeviceCommandRequest,
   parseErrorReportInput,
   parseLogEntryInput,
   parseOptionalStringPayload
@@ -37,7 +42,13 @@ export interface DeviceManagerApi {
   connectDevice(): Promise<DeviceStatus>
   disconnectDevice(): Promise<DeviceStatus>
   getDeviceStatus(): DeviceStatus
+  subscribeState(listener: (event: DeviceStateChangedEvent) => void): () => void
   readDeviceRegisters(request: DeviceReadRequest): Promise<DeviceReadResponse>
+  writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse>
+}
+
+export interface CommandManagerApi {
+  executeCommand(request: DeviceCommandRequest): Promise<DeviceCommandResult>
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse>
 }
 
@@ -50,12 +61,19 @@ export interface TagSubscriptionApi {
   removeSubscriber(webContentsId: number): void
 }
 
+export interface DeviceStateSubscriptionApi {
+  addSubscriber(webContents: IpcMainInvokeEvent['sender']): void
+  removeSubscriber(webContentsId: number): void
+}
+
 export function registerIpcHandlers(
   logger: Logger,
   updateManager: UpdateManagerApi = defaultUpdateManager,
   deviceManager: DeviceManagerApi = createDefaultDeviceManager(logger),
   tagManager: TagManagerApi = createDefaultTagManager(),
-  tagSubscription: TagSubscriptionApi = createNoopTagSubscription()
+  tagSubscription: TagSubscriptionApi = createNoopTagSubscription(),
+  commandManager: CommandManagerApi = createDefaultCommandManager(),
+  deviceStateSubscription: DeviceStateSubscriptionApi = createNoopDeviceStateSubscription()
 ): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
     name: app.getName(),
@@ -121,12 +139,24 @@ export function registerIpcHandlers(
 
   handleIpc<DeviceStatus>(IPC_CHANNELS.devices.getStatus, logger, () => deviceManager.getDeviceStatus())
 
+  handleIpc<void>(IPC_CHANNELS.devices.subscribeState, logger, (_payload, event) => {
+    deviceStateSubscription.addSubscriber(event.sender)
+  })
+
+  handleIpc<void>(IPC_CHANNELS.devices.unsubscribeState, logger, (_payload, event) => {
+    deviceStateSubscription.removeSubscriber(event.sender.id)
+  })
+
   handleIpc<DeviceReadResponse>(IPC_CHANNELS.devices.readRegisters, logger, (payload) => (
     deviceManager.readDeviceRegisters(parseDeviceReadRequest(payload, `ipc:${IPC_CHANNELS.devices.readRegisters}`))
   ))
 
   handleIpc<DeviceWriteResponse>(IPC_CHANNELS.devices.writeRegisters, logger, (payload) => (
-    deviceManager.writeDeviceRegisters(parseDeviceWriteRequest(payload, `ipc:${IPC_CHANNELS.devices.writeRegisters}`))
+    commandManager.writeDeviceRegisters(parseDeviceWriteRequest(payload, `ipc:${IPC_CHANNELS.devices.writeRegisters}`))
+  ))
+
+  handleIpc<DeviceCommandResult>(IPC_CHANNELS.commands.execute, logger, (payload) => (
+    commandManager.executeCommand(parseDeviceCommandRequest(payload, `ipc:${IPC_CHANNELS.commands.execute}`))
   ))
 
   handleIpc<TagSnapshot>(IPC_CHANNELS.tags.getSnapshot, logger, () => tagManager.getTagSnapshot())
@@ -187,6 +217,39 @@ function createDefaultTagManager(): TagManagerApi {
 }
 
 function createNoopTagSubscription(): TagSubscriptionApi {
+  return {
+    addSubscriber: () => undefined,
+    removeSubscriber: () => undefined
+  }
+}
+
+function createDefaultCommandManager(): CommandManagerApi {
+  const createNotConfiguredError = () => createDeviceError(
+    DEVICE_ERROR_CODES.commandRejected,
+    'CommandService is not configured.',
+    'main:ipc-register'
+  )
+
+  return {
+    executeCommand: async () => ({
+      commandId: 'start',
+      deviceId: 'simulated-mixer-plc',
+      targetPointId: 'deviceStartCommand',
+      status: 'rejected',
+      writeAccepted: false,
+      verificationStatus: 'failed',
+      durationMs: 0,
+      message: 'CommandService is not configured.',
+      error: createNotConfiguredError(),
+      timestamp: new Date().toISOString()
+    }),
+    writeDeviceRegisters: () => {
+      throw createNotConfiguredError()
+    }
+  }
+}
+
+function createNoopDeviceStateSubscription(): DeviceStateSubscriptionApi {
   return {
     addSubscriber: () => undefined,
     removeSubscriber: () => undefined

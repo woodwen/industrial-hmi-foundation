@@ -3,7 +3,10 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type {
   AppUpdateEvent,
   AppUpdateListener,
+  DeviceCommandRequest,
   DeviceReadRequest,
+  DeviceStateChangedEvent,
+  DeviceStateListener,
   DeviceWriteRequest,
   ErrorReportInput,
   HmiApi,
@@ -47,12 +50,31 @@ const hmiApi: HmiApi = {
     connect: () => ipcRenderer.invoke(IPC_CHANNELS.devices.connect),
     disconnect: () => ipcRenderer.invoke(IPC_CHANNELS.devices.disconnect),
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.devices.getStatus),
+    subscribeState: (listener: DeviceStateListener) => {
+      const wrappedListener = (_event: IpcRendererEvent, stateEvent: DeviceStateChangedEvent): void => {
+        listener(stateEvent)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.devices.stateChanged, wrappedListener)
+      void ipcRenderer.invoke(IPC_CHANNELS.devices.subscribeState)
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.devices.stateChanged, wrappedListener)
+        void ipcRenderer.invoke(IPC_CHANNELS.devices.unsubscribeState)
+      }
+    },
     readRegisters: (request: DeviceReadRequest) => ipcRenderer.invoke(
       IPC_CHANNELS.devices.readRegisters,
       request
     ),
     writeRegisters: (request: DeviceWriteRequest) => ipcRenderer.invoke(
       IPC_CHANNELS.devices.writeRegisters,
+      request
+    )
+  },
+  commands: {
+    execute: (request: DeviceCommandRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.commands.execute,
       request
     )
   },

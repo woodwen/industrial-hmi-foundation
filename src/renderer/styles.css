@@ -671,6 +671,16 @@ button {
   gap: 8px;
 }
 
+.command-button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.command-button-grid .secondary-action {
+  width: 100%;
+}
+
 .coil-control-row {
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) minmax(64px, auto);
@@ -982,6 +992,10 @@ button {
   }
 
   .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .command-button-grid {
     grid-template-columns: 1fr;
   }
 

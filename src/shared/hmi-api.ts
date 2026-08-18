@@ -75,8 +75,14 @@ export interface DeviceStatus {
   protocol: 'modbusTcp'
   connectionStatus: DeviceConnectionStatus
   endpoint: DeviceEndpoint
+  lastTransitionAt?: string
+  transitionReason?: string
   lastSuccessfulAt?: string
   lastError?: AppErrorShape
+}
+
+export interface DeviceStateChangedEvent extends DeviceStatus {
+  emittedAt: string
 }
 
 export interface DeviceReadRequest {
@@ -113,6 +119,38 @@ export interface DeviceWriteResponse {
   timestamp: string
 }
 
+export type DeviceCommandId =
+  | 'start'
+  | 'stop'
+  | 'motorStart'
+  | 'motorStop'
+  | 'setInletValve'
+  | 'setOutletValve'
+  | 'setTargetTemperature'
+  | 'setRpmSetpoint'
+
+export type CommandStatus = 'succeeded' | 'rejected' | 'busy' | 'timeout' | 'failed'
+export type CommandVerificationStatus = 'notRequired' | 'verified' | 'failed' | 'timeout'
+
+export interface DeviceCommandRequest {
+  commandId: DeviceCommandId
+  value?: ModbusEngineeringValue
+}
+
+export interface DeviceCommandResult {
+  commandId: DeviceCommandId
+  deviceId: string
+  targetPointId: ModbusPointId
+  status: CommandStatus
+  writeAccepted: boolean
+  verificationStatus: CommandVerificationStatus
+  durationMs: number
+  message: string
+  point?: DevicePointValue
+  error?: AppErrorShape
+  timestamp: string
+}
+
 export type AppUpdateEvent =
   | { type: 'checking' }
   | { type: 'available'; version: string }
@@ -124,6 +162,7 @@ export type AppUpdateEvent =
   | { type: 'error'; reason: UpdateErrorReason; message: string }
 
 export type AppUpdateListener = (event: AppUpdateEvent) => void
+export type DeviceStateListener = (event: DeviceStateChangedEvent) => void
 export type TagValuesListener = (event: TagValuesChangedEvent) => void
 export type Unsubscribe = () => void
 
@@ -159,8 +198,12 @@ export interface HmiApi {
     connect(): Promise<HmiResult<DeviceStatus>>
     disconnect(): Promise<HmiResult<DeviceStatus>>
     getStatus(): Promise<HmiResult<DeviceStatus>>
+    subscribeState(listener: DeviceStateListener): Unsubscribe
     readRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
     writeRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>
+  }
+  commands: {
+    execute(request: DeviceCommandRequest): Promise<HmiResult<DeviceCommandResult>>
   }
   tags: {
     getSnapshot(): Promise<HmiResult<TagSnapshot>>

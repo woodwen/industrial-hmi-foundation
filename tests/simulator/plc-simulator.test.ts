@@ -1,6 +1,9 @@
 import { createServer, type AddressInfo } from 'node:net'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
+import type { Logger } from '../../src/main/logging/logger'
+import { DEVICE_ERROR_CODES } from '../../src/main/protocol/errors'
+import { ModbusAdapter } from '../../src/main/protocol/modbus/ModbusAdapter'
 import { ModbusException, ModbusMemoryMap, MODBUS_EXCEPTION } from '../../src/simulator/memory-map'
 import { PlcSimulator } from '../../src/simulator/plc-simulator'
 import { ProcessModel } from '../../src/simulator/process-model'
@@ -70,6 +73,58 @@ describe('PLC Simulator process model', () => {
     expect(() => memoryMap.writeHoldingRegisters(1, [1200, 1])).toThrowError(ModbusException)
     expect(memoryMap.readRegisters('holdingRegister', 1, 1)).toEqual([0])
   })
+
+  it('injects response delay, write failure, and network errors without using business registers', async () => {
+    const port = await getAvailablePort()
+    const simulator = new PlcSimulator({
+      host: '127.0.0.1',
+      port,
+      unitId: 1,
+      tickMs: 50
+    })
+    const adapter = new ModbusAdapter(createLogger())
+
+    try {
+      await simulator.start()
+      await connectAdapter(adapter, port, 60)
+
+      simulator.setResponseDelay(120)
+      await expect(adapter.read({
+        area: 'holdingRegister',
+        address: 0,
+        quantity: 1,
+        timeoutMs: 50
+      })).rejects.toMatchObject({
+        code: DEVICE_ERROR_CODES.requestTimeout
+      })
+
+      await adapter.disconnect()
+      simulator.clearResponseDelay()
+      await connectAdapter(adapter, port)
+      simulator.failNextWrite()
+
+      await expect(adapter.write({
+        area: 'holdingRegister',
+        address: 0,
+        values: [650]
+      })).rejects.toMatchObject({
+        code: DEVICE_ERROR_CODES.protocolError
+      })
+      expect(simulator.getStatus().writeFailureMode).toBe('off')
+
+      await adapter.disconnect()
+      await connectAdapter(adapter, port)
+      simulator.triggerNetworkError()
+      await waitFor(() => adapter.getStatus().connectionStatus === 'Fault')
+
+      expect(adapter.getStatus().lastError).toMatchObject({
+        code: DEVICE_ERROR_CODES.connectionLost
+      })
+    } finally {
+      await adapter.disconnect()
+      await simulator.stop()
+    }
+  })
 })
 
 describe('PLC Simulator fault control', () => {
@@ -123,4 +178,36 @@ function getAvailablePort(): Promise<number> {
       })
     })
   })
+}
+
+async function connectAdapter(adapter: ModbusAdapter, port: number, requestTimeoutMs = 500): Promise<void> {
+  await adapter.connect({
+    deviceId: 'simulated-mixer-plc',
+    host: '127.0.0.1',
+    port,
+    unitId: 1,
+    connectTimeoutMs: 500,
+    requestTimeoutMs
+  })
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void> {
+  const startedAt = Date.now()
+  while (Date.now() - startedAt < timeoutMs) {
+    if (predicate()) {
+      return
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 25)
+    })
+  }
+
+  throw new Error('Timed out waiting for condition.')
+}
+
+function createLogger(): Logger {
+  return {
+    write: vi.fn()
+  }
 }

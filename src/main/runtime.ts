@@ -1,87 +1,95 @@
 import { SIMULATED_MIXER_DEVICE_ID } from '../shared/modbus'
-import type { DeviceReadRequest, DeviceReadResponse, DeviceStatus, DeviceWriteRequest, DeviceWriteResponse } from '../shared/hmi-api'
 import type { TagSnapshot } from '../shared/tag'
-import { DeviceManager } from './device'
+import { CommandService } from './command'
+import { DeviceManager, DeviceOperationGate } from './device'
+import { DeviceStateIpcPublisher } from './ipc/device-state-publisher'
+import { TagIpcPublisher } from './ipc/tag-publisher'
 import type { Logger } from './logging/logger'
 import { ModbusAdapter } from './protocol/modbus/ModbusAdapter'
 import { PollingScheduler, TagCache, TagService } from './tag'
-import { TagIpcPublisher } from './ipc/tag-publisher'
 
 export interface MainRuntime {
-  deviceManager: RuntimeDeviceManager
+  deviceManager: DeviceManager
+  commandService: CommandService
   tagService: TagService
   tagCache: TagCache
   pollingScheduler: PollingScheduler
   tagIpcPublisher: TagIpcPublisher
+  deviceStateIpcPublisher: DeviceStateIpcPublisher
   getTagSnapshot(): TagSnapshot
   dispose(): void
 }
 
-export class RuntimeDeviceManager {
-  constructor(
-    private readonly delegate: DeviceManager,
-    private readonly scheduler: PollingScheduler,
-    private readonly tagCache: TagCache
-  ) {}
-
-  async connectDevice(): Promise<DeviceStatus> {
-    const status = await this.delegate.connectDevice()
-    this.scheduler.start(status.deviceId)
-    return status
-  }
-
-  async disconnectDevice(): Promise<DeviceStatus> {
-    const currentStatus = this.delegate.getDeviceStatus()
-    this.scheduler.stop(currentStatus.deviceId)
-    const status = await this.delegate.disconnectDevice()
-    this.tagCache.markDeviceQuality(status.deviceId, 'Uncertain')
-    return status
-  }
-
-  getDeviceStatus(): DeviceStatus {
-    return this.delegate.getDeviceStatus()
-  }
-
-  readDeviceRegisters(request: DeviceReadRequest): Promise<DeviceReadResponse> {
-    return this.delegate.readDeviceRegisters(request)
-  }
-
-  writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse> {
-    return this.delegate.writeDeviceRegisters(request)
-  }
-}
-
 export function createMainRuntime(logger: Logger): MainRuntime {
   const adapter = new ModbusAdapter(logger)
+  const operationGate = new DeviceOperationGate()
   const tagService = new TagService(undefined, logger)
   const tagCache = new TagCache(tagService.listTagDefinitions())
+  const pollingSchedulerRef: {
+    current?: PollingScheduler
+  } = {}
+
+  const deviceManager = new DeviceManager({
+    adapter,
+    logger,
+    operationGate,
+    lifecycle: {
+      onConnected: (deviceId) => {
+        pollingSchedulerRef.current?.start(deviceId)
+      },
+      onReconnecting: (deviceId) => {
+        pollingSchedulerRef.current?.stop(deviceId)
+        tagCache.markDeviceQuality(deviceId, 'Bad')
+      },
+      onDisconnected: (deviceId, manual) => {
+        pollingSchedulerRef.current?.stop(deviceId)
+        tagCache.markDeviceQuality(deviceId, manual ? 'Uncertain' : 'Bad')
+      },
+      onFault: (deviceId) => {
+        pollingSchedulerRef.current?.stop(deviceId)
+        tagCache.markDeviceQuality(deviceId, 'Bad')
+      }
+    }
+  })
+
   const pollingScheduler = new PollingScheduler({
     adapter,
     tagService,
     tagCache,
+    logger,
+    operationGate,
+    onDeviceCommunicationFailure: (_deviceId, error) => {
+      deviceManager.handleCommunicationFailure(error)
+    }
+  })
+  pollingSchedulerRef.current = pollingScheduler
+
+  const commandService = new CommandService({
+    adapter,
+    deviceManager,
+    operationGate,
     logger
   })
-  const deviceManager = new RuntimeDeviceManager(
-    new DeviceManager({
-      adapter,
-      logger
-    }),
-    pollingScheduler,
-    tagCache
-  )
   const tagIpcPublisher = new TagIpcPublisher(tagCache, logger)
+  const deviceStateIpcPublisher = new DeviceStateIpcPublisher(deviceManager, logger)
 
   return {
     deviceManager,
+    commandService,
     tagService,
     tagCache,
     pollingScheduler,
     tagIpcPublisher,
+    deviceStateIpcPublisher,
     getTagSnapshot: () => tagCache.getSnapshot(SIMULATED_MIXER_DEVICE_ID),
     dispose: () => {
       pollingScheduler.dispose()
       tagIpcPublisher.dispose()
+      deviceStateIpcPublisher.dispose()
+      commandService.dispose()
+      deviceManager.dispose()
       tagCache.dispose()
+      operationGate.dispose()
     }
   }
 }

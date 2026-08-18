@@ -1,8 +1,11 @@
 import type {
   AppInfo,
   AppUpdateListener,
+  DeviceCommandRequest,
+  DeviceCommandResult,
   DeviceReadRequest,
   DeviceReadResponse,
+  DeviceStateListener,
   DeviceStatus,
   DeviceWriteRequest,
   DeviceWriteResponse,
@@ -27,8 +30,10 @@ export interface HmiApiClient {
   connectDevice(): Promise<HmiResult<DeviceStatus>>
   disconnectDevice(): Promise<HmiResult<DeviceStatus>>
   getDeviceStatus(): Promise<HmiResult<DeviceStatus>>
+  subscribeDeviceState(listener: DeviceStateListener): Unsubscribe
   readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>
+  executeCommand(request: DeviceCommandRequest): Promise<HmiResult<DeviceCommandResult>>
   getTagSnapshot(): Promise<HmiResult<TagSnapshot>>
   subscribeTagValues(listener: TagValuesListener): Unsubscribe
 }
@@ -90,12 +95,20 @@ export class AppApplicationService {
     return this.apiClient.getDeviceStatus()
   }
 
+  subscribeDeviceState(listener: DeviceStateListener): Unsubscribe {
+    return this.apiClient.subscribeDeviceState(listener)
+  }
+
   readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>> {
     return this.apiClient.readDeviceRegisters(request)
   }
 
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>> {
     return this.apiClient.writeDeviceRegisters(request)
+  }
+
+  executeCommand(request: DeviceCommandRequest): Promise<HmiResult<DeviceCommandResult>> {
+    return this.apiClient.executeCommand(request)
   }
 
   getTagSnapshot(): Promise<HmiResult<TagSnapshot>> {

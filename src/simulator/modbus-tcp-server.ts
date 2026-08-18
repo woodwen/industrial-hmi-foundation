@@ -20,9 +20,15 @@ export interface ModbusTcpServerConfig {
   unitId: number
 }
 
+export type WriteFailureMode = 'off' | 'once' | 'always'
+
 export class ModbusTcpServer {
   private server: Server | null = null
   private readonly sockets = new Set<Socket>()
+  private readonly responseTimers = new Set<NodeJS.Timeout>()
+  private responseDelayMs = 0
+  private writeFailureMode: WriteFailureMode = 'off'
+  private networkErrorPending = false
 
   constructor(
     private readonly config: ModbusTcpServerConfig,
@@ -31,6 +37,43 @@ export class ModbusTcpServer {
 
   get listening(): boolean {
     return this.server?.listening ?? false
+  }
+
+  getFaultStatus(): {
+    responseDelayMs: number
+    writeFailureMode: WriteFailureMode
+    networkErrorPending: boolean
+  } {
+    return {
+      responseDelayMs: this.responseDelayMs,
+      writeFailureMode: this.writeFailureMode,
+      networkErrorPending: this.networkErrorPending
+    }
+  }
+
+  setResponseDelay(responseDelayMs: number): void {
+    this.responseDelayMs = Math.max(0, Math.floor(responseDelayMs))
+  }
+
+  setWriteFailureMode(mode: WriteFailureMode): void {
+    this.writeFailureMode = mode
+  }
+
+  triggerNetworkError(): void {
+    if (this.sockets.size === 0) {
+      this.networkErrorPending = true
+      return
+    }
+
+    for (const socket of this.sockets) {
+      socket.destroy()
+    }
+  }
+
+  clearFaults(): void {
+    this.responseDelayMs = 0
+    this.writeFailureMode = 'off'
+    this.networkErrorPending = false
   }
 
   async start(): Promise<void> {
@@ -72,6 +115,10 @@ export class ModbusTcpServer {
       socket.destroy()
     }
     this.sockets.clear()
+    for (const timer of this.responseTimers) {
+      clearTimeout(timer)
+    }
+    this.responseTimers.clear()
 
     if (!server || !server.listening) {
       return
@@ -143,22 +190,44 @@ export class ModbusTcpServer {
     }
 
     const functionCode = pdu.readUInt8(0)
+    const processFrame = (): void => {
+      try {
+        if (this.networkErrorPending) {
+          this.networkErrorPending = false
+          socket.destroy()
+          return
+        }
 
-    try {
-      if (unitId !== this.config.unitId) {
-        throw new ModbusException(MODBUS_EXCEPTION.illegalDataAddress, `Unit id ${unitId} is not available.`)
+        if (unitId !== this.config.unitId) {
+          throw new ModbusException(MODBUS_EXCEPTION.illegalDataAddress, `Unit id ${unitId} is not available.`)
+        }
+
+        this.writeResponse(socket, transactionId, unitId, this.handlePdu(functionCode, pdu))
+      } catch (error) {
+        const exceptionCode = error instanceof ModbusException
+          ? error.exceptionCode
+          : MODBUS_EXCEPTION.serverDeviceFailure
+        this.writeResponse(socket, transactionId, unitId, Buffer.from([functionCode | 0x80, exceptionCode]))
       }
-
-      this.writeResponse(socket, transactionId, unitId, this.handlePdu(functionCode, pdu))
-    } catch (error) {
-      const exceptionCode = error instanceof ModbusException
-        ? error.exceptionCode
-        : MODBUS_EXCEPTION.serverDeviceFailure
-      this.writeResponse(socket, transactionId, unitId, Buffer.from([functionCode | 0x80, exceptionCode]))
     }
+
+    if (this.responseDelayMs <= 0) {
+      processFrame()
+      return
+    }
+
+    const timer = setTimeout(() => {
+      this.responseTimers.delete(timer)
+      processFrame()
+    }, this.responseDelayMs)
+    this.responseTimers.add(timer)
   }
 
   private handlePdu(functionCode: number, pdu: Buffer): Buffer {
+    if (isWriteFunction(functionCode)) {
+      this.assertWriteAllowed()
+    }
+
     if (functionCode === FUNCTION_READ_COILS) {
       return this.handleReadBooleans(functionCode, pdu, 'coil')
     }
@@ -290,7 +359,23 @@ export class ModbusTcpServer {
     }
   }
 
+  private assertWriteAllowed(): void {
+    if (this.writeFailureMode === 'off') {
+      return
+    }
+
+    if (this.writeFailureMode === 'once') {
+      this.writeFailureMode = 'off'
+    }
+
+    throw new ModbusException(MODBUS_EXCEPTION.serverDeviceFailure, 'Simulator write failure is enabled.')
+  }
+
   private writeResponse(socket: Socket, transactionId: number, unitId: number, pdu: Buffer): void {
+    if (socket.destroyed) {
+      return
+    }
+
     const response = Buffer.alloc(7 + pdu.length)
 
     response.writeUInt16BE(transactionId, 0)
@@ -300,6 +385,13 @@ export class ModbusTcpServer {
     pdu.copy(response, 7)
     socket.write(response)
   }
+}
+
+function isWriteFunction(functionCode: number): boolean {
+  return functionCode === FUNCTION_WRITE_SINGLE_COIL ||
+    functionCode === FUNCTION_WRITE_SINGLE_REGISTER ||
+    functionCode === FUNCTION_WRITE_MULTIPLE_COILS ||
+    functionCode === FUNCTION_WRITE_MULTIPLE_REGISTERS
 }
 
 function createWriteMultipleResponse(functionCode: number, address: number, quantity: number): Buffer {

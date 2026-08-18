@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  parseDeviceCommandRequest,
   parseDeviceReadRequest,
   parseDeviceWriteRequest,
   parseErrorReportInput,
@@ -103,6 +104,21 @@ describe('IPC input validation', () => {
       pointId: 'deviceStartCommand',
       value: true
     })
+
+    expect(parseDeviceCommandRequest({
+      commandId: 'setTargetTemperature',
+      value: 62.5
+    }, 'ipc:test')).toEqual({
+      commandId: 'setTargetTemperature',
+      value: 62.5
+    })
+
+    expect(parseDeviceCommandRequest({
+      commandId: 'stop'
+    }, 'ipc:test')).toEqual({
+      commandId: 'stop',
+      value: undefined
+    })
   })
 
   it('rejects invalid device payloads', () => {
@@ -120,6 +136,11 @@ describe('IPC input validation', () => {
       parseDeviceWriteRequest({
         pointId: 'targetTemperature',
         value: '62.5'
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseDeviceCommandRequest({
+        commandId: 'autoMode'
       }, 'ipc:test')
     })
   })

@@ -13,7 +13,7 @@ Main Process Tag 模块负责实时工业数据的统一模型、周期采集转
 
 - 本模块只运行在 Main Process。
 - Renderer 只能通过 typed `window.hmi.tags` API 获取 snapshot 和订阅批量更新。
-- 本模块不实现 CommandService、Alarm、Historian、Recipe、自动重连或 OPC UA。
+- 本模块不直接实现 CommandService、Alarm、Historian、Recipe 或 OPC UA；设备状态机和自动重连由 `DeviceManager` 编排。
 
 默认策略：
 
@@ -23,5 +23,6 @@ Main Process Tag 模块负责实时工业数据的统一模型、周期采集转
 - IPC batch throttle 默认 `250ms`。
 - timestamp heartbeat 默认 `2000ms`。
 - 手工 disconnect 标记 `Uncertain`，通信失败标记 `Bad`。
+- 超过 `max(3 * scanRate, 3000ms)` 未成功采集的 `Good` Tag 标记为 `Bad`。
 
-更多说明见 `docs/tag-polling-monitoring.md`。
+更多说明见 `docs/tag-polling-monitoring.md` 和 `docs/device-control-resilience.md`。

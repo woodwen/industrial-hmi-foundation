@@ -83,6 +83,37 @@ export class TagCache {
     return values
   }
 
+  markStaleTags(
+    deviceId: string,
+    nowMs = Date.now(),
+    timestamp = new Date(nowMs).toISOString()
+  ): TagValue[] {
+    const staleValues = this.definitions
+      .filter((definition) => definition.deviceId === deviceId)
+      .flatMap((definition) => {
+        const previous = this.values.get(definition.id)
+        if (!previous || previous.quality !== 'Good') {
+          return []
+        }
+
+        const previousTime = Date.parse(previous.timestamp)
+        const staleTimeoutMs = Math.max(definition.scanRate * 3, 3000)
+        if (!Number.isFinite(previousTime) || nowMs - previousTime < staleTimeoutMs) {
+          return []
+        }
+
+        return [{
+          tagId: definition.id,
+          value: previous.value,
+          quality: 'Bad',
+          timestamp
+        } satisfies TagValue]
+      })
+
+    this.setValues(staleValues)
+    return staleValues
+  }
+
   subscribe(listener: TagCacheListener): () => void {
     this.listeners.add(listener)
     return () => {

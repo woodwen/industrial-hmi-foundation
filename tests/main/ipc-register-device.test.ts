@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DeviceManagerApi, UpdateManagerApi } from '../../src/main/ipc/register'
+import type { CommandManagerApi, DeviceManagerApi, UpdateManagerApi } from '../../src/main/ipc/register'
 import type { Logger } from '../../src/main/logging/logger'
-import type { DeviceReadResponse, DeviceStatus, HmiResult } from '../../src/shared/hmi-api'
+import type { DeviceCommandResult, DeviceReadResponse, DeviceStatus, HmiResult } from '../../src/shared/hmi-api'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 import { DEFAULT_TAG_DEFINITIONS, type TagSnapshot } from '../../src/shared/tag'
 import { createDeviceStatus } from '../support/hmi-api-client-stub'
@@ -99,6 +99,26 @@ describe('Device IPC registration', () => {
     })
   })
 
+  it('does not fall back to DeviceManager writes when CommandService is missing', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const deviceManager = createDeviceManager()
+
+    registerIpcHandlers(createLogger(), createUpdateManager(), deviceManager)
+    const handler = getHandler(IPC_CHANNELS.devices.writeRegisters)
+    const result = await handler({}, {
+      pointId: 'targetTemperature',
+      value: 62.5
+    }) as HmiResult<unknown>
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: 'COMMAND_REJECTED'
+      }
+    })
+    expect(deviceManager.writeDeviceRegisters).not.toHaveBeenCalled()
+  })
+
   it('returns Tag snapshots through the typed Tag IPC handler', async () => {
     const { registerIpcHandlers } = await import('../../src/main/ipc/register')
     const tagManager = {
@@ -151,6 +171,72 @@ describe('Device IPC registration', () => {
     expect(tagSubscription.addSubscriber).toHaveBeenCalledWith(sender)
     expect(tagSubscription.removeSubscriber).toHaveBeenCalledWith(7)
   })
+
+  it('routes typed command execution through CommandService', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const commandManager = createCommandManager()
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      {
+        getTagSnapshot: () => createTagSnapshot()
+      },
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      commandManager
+    )
+
+    const result = await getHandler(IPC_CHANNELS.commands.execute)({}, {
+      commandId: 'start'
+    }) as HmiResult<DeviceCommandResult>
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        commandId: 'start',
+        status: 'succeeded'
+      }
+    })
+    expect(commandManager.executeCommand).toHaveBeenCalledWith({
+      commandId: 'start'
+    })
+  })
+
+  it('registers and removes device state subscribers by webContents id', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const deviceStateSubscription = {
+      addSubscriber: vi.fn(),
+      removeSubscriber: vi.fn()
+    }
+    const sender = {
+      id: 8
+    }
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      {
+        getTagSnapshot: () => createTagSnapshot()
+      },
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createCommandManager(),
+      deviceStateSubscription
+    )
+
+    await getHandler(IPC_CHANNELS.devices.subscribeState)({ sender }, undefined)
+    await getHandler(IPC_CHANNELS.devices.unsubscribeState)({ sender }, undefined)
+
+    expect(deviceStateSubscription.addSubscriber).toHaveBeenCalledWith(sender)
+    expect(deviceStateSubscription.removeSubscriber).toHaveBeenCalledWith(8)
+  })
 })
 
 function getHandler(channel: string): (event: unknown, payload: unknown) => Promise<unknown> {
@@ -169,12 +255,45 @@ function createDeviceManager(): DeviceManagerApi {
     connectDevice: vi.fn<() => Promise<DeviceStatus>>().mockResolvedValue(status),
     disconnectDevice: vi.fn<() => Promise<DeviceStatus>>().mockResolvedValue(createDeviceStatus()),
     getDeviceStatus: vi.fn<() => DeviceStatus>().mockReturnValue(status),
+    subscribeState: vi.fn<DeviceManagerApi['subscribeState']>(() => () => undefined),
     readDeviceRegisters: vi.fn<DeviceManagerApi['readDeviceRegisters']>().mockResolvedValue({
       deviceId: 'simulated-mixer-plc',
       values: [],
       timestamp: '2026-08-18T00:00:00.000Z'
     }),
     writeDeviceRegisters: vi.fn<DeviceManagerApi['writeDeviceRegisters']>().mockResolvedValue({
+      deviceId: 'simulated-mixer-plc',
+      point: {
+        pointId: 'targetTemperature',
+        area: 'holdingRegister',
+        referenceAddress: '40001',
+        pduAddress: 0,
+        value: 62.5,
+        rawValues: [625],
+        formattedValue: '62.5 °C',
+        unit: '°C',
+        writable: true,
+        timestamp: '2026-08-18T00:00:00.000Z'
+      },
+      timestamp: '2026-08-18T00:00:00.000Z'
+    })
+  }
+}
+
+function createCommandManager(): CommandManagerApi {
+  return {
+    executeCommand: vi.fn<CommandManagerApi['executeCommand']>().mockResolvedValue({
+      commandId: 'start',
+      deviceId: 'simulated-mixer-plc',
+      targetPointId: 'deviceStartCommand',
+      status: 'succeeded',
+      writeAccepted: true,
+      verificationStatus: 'verified',
+      durationMs: 20,
+      message: 'Command start succeeded.',
+      timestamp: '2026-08-18T00:00:00.000Z'
+    }),
+    writeDeviceRegisters: vi.fn<CommandManagerApi['writeDeviceRegisters']>().mockResolvedValue({
       deviceId: 'simulated-mixer-plc',
       point: {
         pointId: 'targetTemperature',

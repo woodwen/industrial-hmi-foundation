@@ -1,4 +1,6 @@
 import type { TagScanRate } from '../../shared/tag'
+import type { AppErrorShape } from '../../shared/app-error'
+import type { DeviceOperationGate } from '../device'
 import type { Logger } from '../logging/logger'
 import type { IProtocolAdapter } from '../protocol/types'
 import type { TagCache } from './TagCache'
@@ -10,6 +12,8 @@ interface PollingSchedulerDependencies {
   tagService: TagService
   tagCache: TagCache
   logger: Logger
+  operationGate?: DeviceOperationGate
+  onDeviceCommunicationFailure?: (deviceId: string, error: unknown) => void
 }
 
 interface TimerState {
@@ -126,8 +130,20 @@ export class PollingScheduler {
     if (this.dependencies.adapter.getStatus().connectionStatus !== 'Connected') {
       if (this.isDeviceGenerationCurrent(deviceId, generation)) {
         this.dependencies.tagCache.markDeviceQuality(deviceId, 'Bad')
+        this.dependencies.onDeviceCommunicationFailure?.(deviceId, {
+          code: 'DEVICE_NOT_CONNECTED',
+          message: 'Device is not connected for polling.',
+          source: 'main:polling-scheduler'
+        } satisfies AppErrorShape)
         this.stop(deviceId)
       }
+      return
+    }
+
+    this.dependencies.tagCache.markStaleTags(deviceId)
+
+    if (this.dependencies.operationGate?.isBusy(deviceId)) {
+      this.logSkip(deviceId, scanRate, state)
       return
     }
 
@@ -152,11 +168,7 @@ export class PollingScheduler {
 
   private async readGroup(group: ScanGroup, generation: number): Promise<boolean> {
     try {
-      const result = await this.dependencies.adapter.read({
-        area: group.registerType,
-        address: group.startAddress,
-        quantity: group.quantity
-      })
+      const result = await this.readGroupThroughGate(group)
       if (!this.isDeviceGenerationCurrent(group.deviceId, generation)) {
         return false
       }
@@ -178,6 +190,7 @@ export class PollingScheduler {
 
       const timestamp = new Date().toISOString()
       this.dependencies.tagCache.markDeviceQuality(group.deviceId, 'Bad', timestamp)
+      this.dependencies.onDeviceCommunicationFailure?.(group.deviceId, error)
       this.dependencies.logger.write({
         category: 'communication',
         level: 'warn',
@@ -191,6 +204,18 @@ export class PollingScheduler {
       this.stop(group.deviceId)
       return false
     }
+  }
+
+  private readGroupThroughGate(group: ScanGroup) {
+    const read = () => this.dependencies.adapter.read({
+      area: group.registerType,
+      address: group.startAddress,
+      quantity: group.quantity
+    })
+
+    return this.dependencies.operationGate
+      ? this.dependencies.operationGate.runExclusive(group.deviceId, read)
+      : read()
   }
 
   private getDeviceGroupsByRate(deviceId: string): Map<TagScanRate, ScanGroup[]> {

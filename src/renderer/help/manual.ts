@@ -14,7 +14,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '应用定位',
       paragraphs: [
         'Industrial HMI Foundation 是工业自动化上位机/HMI 的 Electron 基础工程，用于学习、面试展示和后续能力演进。',
-        '当前版本在基础桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程之上，加入模拟 PLC 的 Modbus TCP 手工链路验证、Tag 周期采集和实时监控。'
+        '当前版本在基础桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程之上，加入模拟 PLC 的 Modbus TCP 手工链路验证、Tag 周期采集、实时监控、设备状态机、受控自动重连和基础 CommandService 控制。'
       ],
       bullets: [
         'Renderer 是受限 UI 层，只通过 window.hmi 访问桌面能力。',
@@ -28,7 +28,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['左侧导航提供 Dashboard、Device、Alarm、Trend、Recipe、Tag Management 和 Settings 页面骨架。'],
       bullets: [
         'Dashboard 展示模拟混料设备的温度、液位、压力、转速、运行状态、模式和生产计数。',
-        'Device 可以连接独立启动的模拟 PLC，并手工读取过程值、写入目标温度/手动转速、控制 Coil。',
+        'Device 可以连接独立启动的模拟 PLC，并通过 CommandService 写入目标温度/手动转速、执行启停和阀门控制。',
         'Device Tag Monitor 展示默认 Tag 的 Value、Unit、Quality 和 Timestamp。',
         'Alarm、Trend、Recipe 和 Tag Management 当前只展示占位结构。',
         'Settings 当前展示日志与错误上报基础项。'
@@ -70,8 +70,8 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '当前边界',
       paragraphs: ['当前版本不是生产控制系统，设备通信仅用于连接本项目提供的模拟 PLC 或兼容测试端点。'],
       bullets: [
-        '已实现独立 PLC Simulator、Modbus TCP adapter、DeviceManager、Tag 模型、TagCache、PollingScheduler、Dashboard 实时监控和 Device Tag Monitor。',
-        '尚未实现报警处理、历史趋势存储、配方执行、自动重连、CommandService、权限审计或 OPC UA。',
+        '已实现独立 PLC Simulator、Modbus TCP adapter、DeviceManager、设备状态机、自动重连、Tag 模型、TagCache、PollingScheduler、Dashboard 实时监控、Device Tag Monitor、CommandService 和基础写入验证。',
+        '尚未实现报警处理、历史趋势存储、配方执行、权限审计或 OPC UA。',
         '后续工业能力应通过独立 OpenSpec change 增量实现。'
       ]
     },
@@ -81,7 +81,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['如果 Device 页面无法读取数据，先确认 PLC Simulator 已独立启动。'],
       bullets: [
         '看不到实时数据：运行 npm run simulator:start 后再在 Device 页面 Connect。',
-        'Tag Quality 显示 Bad：检查 Simulator 是否停止或通信是否中断，恢复后手工重新 Connect。',
+        'Tag Quality 显示 Bad：检查 Simulator 是否停止或通信是否中断；恢复 Simulator 后 HMI 会按 backoff 自动重连，已进入 Fault 时再手工 Connect。',
         '检查更新提示开发环境：请使用 packaged 应用验证真实更新检查。',
         '版本更新说明为空：请确认 CHANGELOG.md 中存在当前版本区块。'
       ]
@@ -93,7 +93,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'Purpose',
       paragraphs: [
         'Industrial HMI Foundation is an Electron foundation for an industrial HMI desktop application.',
-        'This version adds manual Modbus TCP verification, periodic Tag sampling, and realtime monitoring for a simulated PLC on top of the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
+        'This version adds manual Modbus TCP verification, periodic Tag sampling, realtime monitoring, an explicit device state machine, bounded automatic reconnect, and basic CommandService control for a simulated PLC on top of the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
       ],
       bullets: [
         'Renderer is a restricted UI layer and accesses desktop capabilities only through window.hmi.',
@@ -107,7 +107,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['The sidebar provides Dashboard, Device, Alarm, Trend, Recipe, Tag Management, and Settings frames.'],
       bullets: [
         'Dashboard shows temperature, level, pressure, RPM, running state, mode, and production count for the simulated mixer.',
-        'Device can connect to the independently started simulated PLC, manually read process values, write target temperature/manual RPM, and control coils.',
+        'Device can connect to the independently started simulated PLC, write target temperature/manual RPM, and execute start/stop and valve controls through CommandService.',
         'Device Tag Monitor shows Value, Unit, Quality, and Timestamp for the default Tags.',
         'Alarm, Trend, Recipe, and Tag Management currently show structural placeholders.',
         'Settings currently exposes logging and error reporting basics.'
@@ -149,8 +149,8 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'Current Scope',
       paragraphs: ['This version is not a production control system. Device communication is intended for the bundled PLC Simulator or a compatible test endpoint.'],
       bullets: [
-        'PLC Simulator, Modbus TCP adapter, DeviceManager, Tag model, TagCache, PollingScheduler, Dashboard realtime monitoring, and Device Tag Monitor are implemented.',
-        'Alarm processing, historian storage, recipe execution, automatic reconnect, CommandService, permission audit, and OPC UA are not implemented.',
+        'PLC Simulator, Modbus TCP adapter, DeviceManager, explicit device state machine, automatic reconnect, Tag model, TagCache, PollingScheduler, Dashboard realtime monitoring, Device Tag Monitor, CommandService, and basic write verification are implemented.',
+        'Alarm processing, historian storage, recipe execution, permission audit, and OPC UA are not implemented.',
         'Future industrial capabilities should be added through separate OpenSpec changes.'
       ]
     },
@@ -160,7 +160,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['If Device cannot read data, confirm the PLC Simulator is running independently.'],
       bullets: [
         'No realtime data: run npm run simulator:start, then use Connect on the Device page.',
-        'Tag Quality shows Bad: check whether the Simulator stopped or communication was interrupted, then manually connect again after recovery.',
+        'Tag Quality shows Bad: check whether the Simulator stopped or communication was interrupted; after the Simulator recovers, HMI reconnects automatically with backoff, and Fault still requires manual Connect.',
         'Development update status: use a packaged app to verify real update checks.',
         'Empty version notes: confirm CHANGELOG.md contains a current version section.'
       ]

@@ -1,8 +1,11 @@
 import type {
   AppInfo,
   AppUpdateListener,
+  DeviceCommandRequest,
+  DeviceCommandResult,
   DeviceReadRequest,
   DeviceReadResponse,
+  DeviceStateListener,
   DeviceStatus,
   DeviceWriteRequest,
   DeviceWriteResponse,
@@ -64,12 +67,20 @@ export class HmiApiBrowserClient implements HmiApiClient {
     return window.hmi.devices.getStatus()
   }
 
+  subscribeDeviceState(listener: DeviceStateListener): Unsubscribe {
+    return window.hmi.devices.subscribeState(listener)
+  }
+
   readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>> {
     return window.hmi.devices.readRegisters(request)
   }
 
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>> {
     return window.hmi.devices.writeRegisters(request)
+  }
+
+  executeCommand(request: DeviceCommandRequest): Promise<HmiResult<DeviceCommandResult>> {
+    return window.hmi.commands.execute(request)
   }
 
   getTagSnapshot(): Promise<HmiResult<TagSnapshot>> {

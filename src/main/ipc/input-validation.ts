@@ -1,5 +1,7 @@
 import { createAppError } from '../../shared/app-error'
 import type {
+  DeviceCommandId,
+  DeviceCommandRequest,
   DeviceReadRequest,
   DeviceWriteRequest,
   ErrorReportInput,
@@ -11,6 +13,16 @@ import { isModbusPointId, type ModbusEngineeringValue, type ModbusPointId } from
 
 const LOG_CATEGORIES: readonly LogCategory[] = ['application', 'communication', 'error']
 const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error']
+const DEVICE_COMMAND_IDS: readonly DeviceCommandId[] = [
+  'start',
+  'stop',
+  'motorStart',
+  'motorStop',
+  'setInletValve',
+  'setOutletValve',
+  'setTargetTemperature',
+  'setRpmSetpoint'
+]
 
 export function parseLogEntryInput(payload: unknown, source: string): LogEntryInput {
   const record = requireRecord(payload, 'Log entry payload must be an object.', source)
@@ -60,6 +72,19 @@ export function parseDeviceWriteRequest(payload: unknown, source: string): Devic
   return {
     pointId: requirePointId(record.pointId, source),
     value: requireEngineeringValue(record.value, source)
+  }
+}
+
+export function parseDeviceCommandRequest(payload: unknown, source: string): DeviceCommandRequest {
+  const record = requireRecord(payload, 'Device command payload must be an object.', source)
+  const commandId = requireOneOf(record.commandId, DEVICE_COMMAND_IDS, 'Device command id is invalid.', source)
+  const value = record.value === undefined
+    ? undefined
+    : requireEngineeringValue(record.value, source)
+
+  return {
+    commandId,
+    value
   }
 }
 

@@ -13,12 +13,11 @@
 - Device 页面支持 Connect、Disconnect、Connection Status、手工读取和受控写入。
 - 本期未新增 Modbus 生产依赖，采用 Node TCP 实现轻量 Modbus TCP client/server，便于控制 Electron Main Process 和独立 Simulator 的打包边界。
 
-`add-modbus-plc-simulator` 本身不实现以下能力；其中 Tag 模型、TagCache、周期采集和 Dashboard 实时监控已在后续 `add-tag-polling-monitoring` change 中实现，见 `docs/tag-polling-monitoring.md`。
+`add-modbus-plc-simulator` 本身不实现以下能力；其中 Tag 模型、TagCache、周期采集和 Dashboard 实时监控已在后续 `add-tag-polling-monitoring` change 中实现，见 `docs/tag-polling-monitoring.md`。设备状态机、自动重连、CommandService 和 fault injection 已在 `add-device-control-resilience` change 中实现，见 `docs/device-control-resilience.md`。
 
 - Alarm
 - Historian
 - Recipe
-- 自动重连
 - OPC UA
 
 ## Start And Stop
@@ -59,6 +58,13 @@ Electron HMI 当前默认连接 `127.0.0.1:1502` / Unit ID `1`。如果修改模
 | `status` | 输出 Simulator 当前 listening/faulted/endpoint 状态 |
 | `disconnect` | 关闭 Modbus TCP Server，保留内存和过程状态 |
 | `recover` | 重新启动 Modbus TCP Server，继续使用保留的内存和过程状态 |
+| `delay <ms>` | 为 read/write response 增加固定响应延迟 |
+| `delay off` | 清除响应延迟 |
+| `write-fail once` | 下一次写请求返回 Modbus exception |
+| `write-fail on` | 持续写失败 |
+| `write-fail off` | 清除写失败 |
+| `network-error` | 中断 active socket；无连接时中断下一次请求 |
+| `clear-faults` | 清除 delay / write failure / pending network error |
 | `stop` | 停止 TCP Server 和过程模型；下次完整启动恢复初始值 |
 
 ## Initial Values
@@ -136,9 +142,10 @@ Electron HMI 当前默认连接 `127.0.0.1:1502` / Unit ID `1`。如果修改模
 3. 打开 Device 页面，点击 `Connect`。
 4. 点击 `手工读取`，确认当前温度、液位、电机转速等过程值展示。
 5. 修改目标温度并点击 `写入`，确认 read-back 值更新。
-6. 切换 Coil 控件，例如设备启动或进料阀，再点击 `手工读取` 查看过程值/反馈变化。
-7. 在 Simulator 终端输入 `disconnect`，再在 Device 页面手工读取，确认 UI 显示通信错误和 Fault 状态。
-8. 在 Simulator 终端输入 `recover`，再在 Device 页面点击 `Connect`，确认可以手工重新连接。
+6. 使用 CommandService 控制入口执行 Start、Stop、Motor Start/Stop、Inlet Valve、Outlet Valve，观察反馈点位变化。
+7. 在 Simulator 终端输入 `disconnect`，确认 Device 状态进入 `Reconnecting`，相关 Tag Quality 变为 `Bad`。
+8. 在 Simulator 终端输入 `recover`，确认 HMI 自动连接、重新采集数据，成功采集后的 Quality 回到 `Good`。
+9. 输入 `delay <ms>`、`write-fail once`、`network-error`，验证 timeout、写失败和网络异常不会导致 Renderer 卡死或崩溃。
 
 ## Error Handling
 

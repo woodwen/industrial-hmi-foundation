@@ -12,14 +12,16 @@ import { TrendPage } from './pages/TrendPage'
 import { useViewModels } from './viewmodels/ViewModelContext'
 
 export const App = observer(() => {
-  const { app, tags } = useViewModels()
+  const { app, device, tags } = useViewModels()
 
   useEffect(() => {
     void tags.initialize()
+    void device.initialize()
     return () => {
       tags.dispose()
+      device.dispose()
     }
-  }, [tags])
+  }, [device, tags])
 
   return (
     <AppLayout>

@@ -163,6 +163,33 @@ describe('TagCache', () => {
       timestamp: '2026-08-18T00:00:02.000Z'
     })
   })
+
+  it('marks stale Good values as Bad after max(3 * scanRate, 3000ms)', () => {
+    const cache = new TagCache(DEFAULT_TAG_DEFINITIONS, () => '2026-08-18T00:00:00.000Z')
+    cache.setValues([{
+      tagId: 'currentTemperature',
+      value: 25.5,
+      quality: 'Good',
+      timestamp: '2026-08-18T00:00:00.000Z'
+    }])
+
+    expect(cache.markStaleTags(
+      'simulated-mixer-plc',
+      Date.parse('2026-08-18T00:00:02.999Z'),
+      '2026-08-18T00:00:02.999Z'
+    )).toEqual([])
+
+    expect(cache.markStaleTags(
+      'simulated-mixer-plc',
+      Date.parse('2026-08-18T00:00:03.000Z'),
+      '2026-08-18T00:00:03.000Z'
+    )).toEqual([{
+      tagId: 'currentTemperature',
+      value: 25.5,
+      quality: 'Bad',
+      timestamp: '2026-08-18T00:00:03.000Z'
+    }])
+  })
 })
 
 function requiredDefinition(tagId: string): TagDefinition {

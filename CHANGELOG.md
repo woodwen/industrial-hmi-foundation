@@ -10,6 +10,7 @@
 - 新增根目录 `AGENTS.md`、`README.md` 和 `CHANGELOG.md`，补齐协作说明、项目说明和版本记录来源。
 - 新增独立 PLC Simulator、Modbus TCP 协议适配器和 Device 页面手工连接/读写验证能力。
 - 新增 Tag 模型、周期采集、TagCache、Dashboard 实时监控和 Device Tag Monitor。
+- 新增设备状态机、自动重连、Tag Quality 降级/恢复、CommandService 设备控制、写入验证和 Simulator 故障注入能力。
 
 ### Changed
 

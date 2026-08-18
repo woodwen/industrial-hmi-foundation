@@ -22,7 +22,7 @@ Dashboard / Device Tag Monitor
 
 Renderer 不直接读取 Modbus，不创建 TCP Socket，也不访问 Main Process TagService、PollingScheduler 或 TagCache。
 
-本期仍不实现自动重连、CommandService、Alarm、Historian、Recipe、Permission、Audit 或 OPC UA。
+Tag 轮询本身不直接执行设备控制；设备状态机、自动重连、CommandService 和写入验证已在 `add-device-control-resilience` change 中实现，见 `docs/device-control-resilience.md`。Alarm、Historian、Recipe、Permission、Audit 和 OPC UA 仍留到后续 change。
 
 ## Tag Domain Model
 
@@ -114,6 +114,9 @@ TagCache
 - Simulator 停止、Modbus 读取失败、通信中断：该设备 Tags 标记为 `Bad`
 - 用户手工 disconnect：`Uncertain`
 - 首次成功采集前：`Uncertain`
+- 超过 `max(3 * scanRate, 3000ms)` 未成功采集：仍保留 last value，但 Quality 变为 `Bad`
+- reconnect 成功但首次新采样前：保持 `Bad`
+- reconnect 后首次成功采集并 decode：对应 Tags 恢复 `Good`
 
 读取失败后可以保留 last value，但必须更新 quality 和 timestamp，UI 不能把旧值当作正常实时值展示。
 本期轮询读取失败后会暂停该设备 polling，因此同设备内未轮到的 Tag 也会降级为 `Bad`，避免继续显示旧 `Good`。
@@ -190,6 +193,7 @@ Device Tag Monitor 至少展示：
 6. 在 Simulator 中改变过程状态或通过现有手工 Coil/寄存器写入触发变化，Dashboard 和 Tag Monitor 应随批量推送更新。
 7. 停止 Simulator，Renderer 不应崩溃，相关 Tags quality 应降级为 `Bad`。
 8. 手工点击 Disconnect，相关 Tags quality 应变为 `Uncertain`。
+9. 恢复 Simulator 后，HMI 自动重连；只有成功重新采集的 Tags 才恢复为 `Good`。
 
 ## Logs
 

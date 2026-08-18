@@ -4,8 +4,12 @@ import type {
   AppUpdateEvent,
   AppInfo,
   AppUpdateListener,
+  DeviceCommandRequest,
+  DeviceCommandResult,
   DeviceReadRequest,
   DeviceReadResponse,
+  DeviceStateChangedEvent,
+  DeviceStateListener,
   DeviceStatus,
   DeviceWriteRequest,
   DeviceWriteResponse,
@@ -78,10 +82,14 @@ describe('Preload HMI API contract', () => {
     expectTypeOf<HmiApi['devices']['connect']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
     expectTypeOf<HmiApi['devices']['disconnect']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
     expectTypeOf<HmiApi['devices']['getStatus']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
+    expectTypeOf<HmiApi['devices']['subscribeState']>().parameters.toEqualTypeOf<[DeviceStateListener]>()
+    expectTypeOf<HmiApi['devices']['subscribeState']>().returns.toEqualTypeOf<() => void>()
     expectTypeOf<HmiApi['devices']['readRegisters']>().parameters.toEqualTypeOf<[DeviceReadRequest]>()
     expectTypeOf<HmiApi['devices']['readRegisters']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceReadResponse>>>()
     expectTypeOf<HmiApi['devices']['writeRegisters']>().parameters.toEqualTypeOf<[DeviceWriteRequest]>()
     expectTypeOf<HmiApi['devices']['writeRegisters']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceWriteResponse>>>()
+    expectTypeOf<HmiApi['commands']['execute']>().parameters.toEqualTypeOf<[DeviceCommandRequest]>()
+    expectTypeOf<HmiApi['commands']['execute']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceCommandResult>>>()
     expectTypeOf<HmiApi['tags']['getSnapshot']>().returns.toEqualTypeOf<Promise<HmiResult<TagSnapshot>>>()
     expectTypeOf<HmiApi['tags']['subscribeValues']>().parameters.toEqualTypeOf<[TagValuesListener]>()
     expectTypeOf<HmiApi['tags']['subscribeValues']>().returns.toEqualTypeOf<() => void>()
@@ -97,18 +105,23 @@ describe('Preload HMI API contract', () => {
       pointId: 'targetTemperature',
       value: 62.5
     }
+    const commandRequest: DeviceCommandRequest = {
+      commandId: 'start'
+    }
 
     await hmiApi.devices.connect()
     await hmiApi.devices.disconnect()
     await hmiApi.devices.getStatus()
     await hmiApi.devices.readRegisters(readRequest)
     await hmiApi.devices.writeRegisters(writeRequest)
+    await hmiApi.commands.execute(commandRequest)
 
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.connect)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.disconnect)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.getStatus)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.readRegisters, readRequest)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.writeRegisters, writeRequest)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.commands.execute, commandRequest)
   })
 
   it('unsubscribes update event listeners from the preload bridge', async () => {
@@ -171,6 +184,43 @@ describe('Preload HMI API contract', () => {
     )
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.tags.unsubscribe)
   })
+
+  it('unsubscribes device state listeners from the preload bridge', async () => {
+    await import('../../src/preload/index')
+    const hmiApi = electronMocks.exposedApis.get('hmi') as HmiApi
+    const listener = vi.fn<DeviceStateListener>()
+
+    const unsubscribe = hmiApi.devices.subscribeState(listener)
+    emitDeviceStateEvent({
+      deviceId: 'simulated-mixer-plc',
+      name: 'Simulated Mixer PLC',
+      protocol: 'modbusTcp',
+      connectionStatus: 'Reconnecting',
+      endpoint: {
+        host: '127.0.0.1',
+        port: 1502,
+        unitId: 1
+      },
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })
+
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.subscribeState)
+    expect(electronMocks.ipcRenderer.on).toHaveBeenCalledWith(
+      IPC_CHANNELS.devices.stateChanged,
+      expect.any(Function)
+    )
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      connectionStatus: 'Reconnecting'
+    }))
+
+    unsubscribe()
+
+    expect(electronMocks.ipcRenderer.removeListener).toHaveBeenCalledWith(
+      IPC_CHANNELS.devices.stateChanged,
+      expect.any(Function)
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.unsubscribeState)
+  })
 })
 
 function emitUpdateEvent(event: AppUpdateEvent): void {
@@ -181,6 +231,12 @@ function emitUpdateEvent(event: AppUpdateEvent): void {
 
 function emitTagValuesEvent(event: TagValuesChangedEvent): void {
   electronMocks.listeners.get(IPC_CHANNELS.tags.valuesChanged)?.forEach((listener) => {
+    listener({}, event)
+  })
+}
+
+function emitDeviceStateEvent(event: DeviceStateChangedEvent): void {
+  electronMocks.listeners.get(IPC_CHANNELS.devices.stateChanged)?.forEach((listener) => {
     listener({}, event)
   })
 }

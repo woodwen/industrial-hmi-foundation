@@ -6,6 +6,9 @@ export const DEVICE_ERROR_CODES = {
   requestTimeout: 'DEVICE_REQUEST_TIMEOUT',
   illegalAddress: 'DEVICE_ILLEGAL_ADDRESS',
   writeRejected: 'DEVICE_WRITE_REJECTED',
+  commandRejected: 'COMMAND_REJECTED',
+  commandBusy: 'COMMAND_BUSY',
+  commandTimeout: 'COMMAND_TIMEOUT',
   connectionLost: 'DEVICE_CONNECTION_LOST',
   protocolError: 'PROTOCOL_ERROR'
 } as const

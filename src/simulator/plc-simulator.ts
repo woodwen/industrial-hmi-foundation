@@ -5,6 +5,7 @@ import {
   DEFAULT_SIMULATOR_UNIT_ID
 } from '../shared/modbus'
 import { ModbusTcpServer } from './modbus-tcp-server'
+import type { WriteFailureMode } from './modbus-tcp-server'
 import { ModbusMemoryMap } from './memory-map'
 import { ProcessModel } from './process-model'
 
@@ -19,6 +20,9 @@ export interface PlcSimulatorStatus {
   listening: boolean
   faulted: boolean
   endpoint: string
+  responseDelayMs: number
+  writeFailureMode: WriteFailureMode
+  networkErrorPending: boolean
 }
 
 export class PlcSimulator {
@@ -75,15 +79,44 @@ export class PlcSimulator {
     this.faulted = false
   }
 
+  setResponseDelay(responseDelayMs: number): void {
+    this.server.setResponseDelay(responseDelayMs)
+  }
+
+  clearResponseDelay(): void {
+    this.server.setResponseDelay(0)
+  }
+
+  failNextWrite(): void {
+    this.server.setWriteFailureMode('once')
+  }
+
+  setWriteFailureMode(mode: WriteFailureMode): void {
+    this.server.setWriteFailureMode(mode)
+  }
+
+  triggerNetworkError(): void {
+    this.server.triggerNetworkError()
+  }
+
+  clearFaults(): void {
+    this.server.clearFaults()
+  }
+
   tick(deltaMs: number = this.config.tickMs): void {
     this.processModel.tick(deltaMs)
   }
 
   getStatus(): PlcSimulatorStatus {
+    const faultStatus = this.server.getFaultStatus()
+
     return {
       listening: this.server.listening,
       faulted: this.faulted,
-      endpoint: `${this.config.host}:${this.config.port}/unit-${this.config.unitId}`
+      endpoint: `${this.config.host}:${this.config.port}/unit-${this.config.unitId}`,
+      responseDelayMs: faultStatus.responseDelayMs,
+      writeFailureMode: faultStatus.writeFailureMode,
+      networkErrorPending: faultStatus.networkErrorPending
     }
   }
 }

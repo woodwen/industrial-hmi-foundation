@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { DeviceOperationGate } from '../../../src/main/device'
 import { PollingScheduler, TagCache, TagService } from '../../../src/main/tag'
 import type { Logger } from '../../../src/main/logging/logger'
 import type {
@@ -68,11 +69,13 @@ describe('PollingScheduler', () => {
     adapter.failReads = true
     const tagService = new TagService(undefined, createLogger())
     const tagCache = new TagCache(tagService.listTagDefinitions())
+    const onDeviceCommunicationFailure = vi.fn()
     const scheduler = new PollingScheduler({
       adapter,
       tagService,
       tagCache,
-      logger: createLogger()
+      logger: createLogger(),
+      onDeviceCommunicationFailure
     })
 
     scheduler.start('simulated-mixer-plc')
@@ -85,6 +88,37 @@ describe('PollingScheduler', () => {
     expect(tagCache.getValue('targetTemperature')).toMatchObject({
       quality: 'Bad'
     })
+    expect(onDeviceCommunicationFailure).toHaveBeenCalledWith(
+      'simulated-mixer-plc',
+      expect.any(Error)
+    )
+  })
+
+  it('skips polling while the device operation gate is busy', async () => {
+    const adapter = new FakeProtocolAdapter()
+    const tagService = new TagService(undefined, createLogger())
+    const gate = new DeviceOperationGate()
+    const releases: Array<() => void> = []
+    const heldOperation = gate.runExclusive('simulated-mixer-plc', () => (
+      new Promise<void>((resolve) => {
+        releases.push(resolve)
+      })
+    ))
+    const scheduler = new PollingScheduler({
+      adapter,
+      tagService,
+      tagCache: new TagCache(tagService.listTagDefinitions()),
+      logger: createLogger(),
+      operationGate: gate
+    })
+
+    scheduler.start('simulated-mixer-plc')
+    await flushPromises()
+    scheduler.dispose()
+    releases[0]?.()
+    await heldOperation
+
+    expect(adapter.readRequests).toEqual([])
   })
 
   it('does not let in-flight reads update TagCache after polling is stopped', async () => {
