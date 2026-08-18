@@ -40,7 +40,9 @@ function createMainWindow(): BrowserWindow {
 }
 
 void app.whenReady().then(() => {
-  mainRuntime = createMainRuntime(logger)
+  mainRuntime = createMainRuntime(logger, {
+    databasePath: join(app.getPath('userData'), 'industrial-hmi.sqlite')
+  })
   registerIpcHandlers(
     logger,
     undefined,
@@ -48,7 +50,11 @@ void app.whenReady().then(() => {
     mainRuntime,
     mainRuntime.tagIpcPublisher,
     mainRuntime.commandService,
-    mainRuntime.deviceStateIpcPublisher
+    mainRuntime.deviceStateIpcPublisher,
+    mainRuntime,
+    mainRuntime.alarmIpcPublisher,
+    mainRuntime,
+    mainRuntime.trendIpcPublisher
   )
   logger.write({
     category: 'application',

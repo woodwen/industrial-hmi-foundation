@@ -1,6 +1,13 @@
 import { app, ipcMain, type IpcMainInvokeEvent } from 'electron'
 
-import { toAppError } from '../../shared/app-error'
+import { createAppError, toAppError } from '../../shared/app-error'
+import type {
+  AlarmAcknowledgeRequest,
+  AlarmHistoryQuery,
+  AlarmHistoryResult,
+  AlarmOccurrence,
+  AlarmSnapshot
+} from '../../shared/alarm'
 import type {
   DeviceCommandRequest,
   DeviceCommandResult,
@@ -13,6 +20,12 @@ import type {
   HmiResult
 } from '../../shared/hmi-api'
 import type { TagSnapshot } from '../../shared/tag'
+import type {
+  HistoricalTrendQuery,
+  HistoricalTrendResult,
+  RealtimeTrendRequest,
+  RealtimeTrendSnapshot
+} from '../../shared/trend'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import { createDefaultDeviceManager } from '../device'
 import { TagCache, TagService } from '../tag'
@@ -22,10 +35,14 @@ import * as defaultUpdateManager from '../update-manager'
 import {
   parseDeviceReadRequest,
   parseDeviceWriteRequest,
+  parseAlarmAcknowledgeRequest,
+  parseAlarmHistoryQuery,
   parseDeviceCommandRequest,
   parseErrorReportInput,
+  parseHistoricalTrendQuery,
   parseLogEntryInput,
-  parseOptionalStringPayload
+  parseOptionalStringPayload,
+  parseRealtimeTrendRequest
 } from './input-validation'
 
 type Handler<TResult> = (payload: unknown, event: IpcMainInvokeEvent) => Promise<TResult> | TResult
@@ -61,6 +78,27 @@ export interface TagSubscriptionApi {
   removeSubscriber(webContentsId: number): void
 }
 
+export interface AlarmManagerApi {
+  getAlarmSnapshot(): AlarmSnapshot
+  acknowledgeAlarm(request: AlarmAcknowledgeRequest): AlarmOccurrence
+  queryAlarmHistory(query: AlarmHistoryQuery): AlarmHistoryResult
+}
+
+export interface AlarmSubscriptionApi {
+  addSubscriber(webContents: IpcMainInvokeEvent['sender']): void
+  removeSubscriber(webContentsId: number): void
+}
+
+export interface TrendManagerApi {
+  getRealtimeTrendSnapshot(request: RealtimeTrendRequest): RealtimeTrendSnapshot
+  queryHistoricalTrend(query: HistoricalTrendQuery): HistoricalTrendResult
+}
+
+export interface TrendSubscriptionApi {
+  addSubscriber(webContents: IpcMainInvokeEvent['sender'], tagIds: readonly string[]): void
+  removeSubscriber(webContentsId: number): void
+}
+
 export interface DeviceStateSubscriptionApi {
   addSubscriber(webContents: IpcMainInvokeEvent['sender']): void
   removeSubscriber(webContentsId: number): void
@@ -73,7 +111,11 @@ export function registerIpcHandlers(
   tagManager: TagManagerApi = createDefaultTagManager(),
   tagSubscription: TagSubscriptionApi = createNoopTagSubscription(),
   commandManager: CommandManagerApi = createDefaultCommandManager(),
-  deviceStateSubscription: DeviceStateSubscriptionApi = createNoopDeviceStateSubscription()
+  deviceStateSubscription: DeviceStateSubscriptionApi = createNoopDeviceStateSubscription(),
+  alarmManager: AlarmManagerApi = createDefaultAlarmManager(),
+  alarmSubscription: AlarmSubscriptionApi = createNoopAlarmSubscription(),
+  trendManager: TrendManagerApi = createDefaultTrendManager(),
+  trendSubscription: TrendSubscriptionApi = createNoopTrendSubscription()
 ): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
     name: app.getName(),
@@ -168,6 +210,43 @@ export function registerIpcHandlers(
   handleIpc<void>(IPC_CHANNELS.tags.unsubscribe, logger, (_payload, event) => {
     tagSubscription.removeSubscriber(event.sender.id)
   })
+
+  handleIpc<AlarmSnapshot>(IPC_CHANNELS.alarms.getSnapshot, logger, () => alarmManager.getAlarmSnapshot())
+
+  handleIpc<void>(IPC_CHANNELS.alarms.subscribe, logger, (_payload, event) => {
+    alarmSubscription.addSubscriber(event.sender)
+  })
+
+  handleIpc<void>(IPC_CHANNELS.alarms.unsubscribe, logger, (_payload, event) => {
+    alarmSubscription.removeSubscriber(event.sender.id)
+  })
+
+  handleIpc<AlarmOccurrence>(IPC_CHANNELS.alarms.acknowledge, logger, (payload) => (
+    alarmManager.acknowledgeAlarm(parseAlarmAcknowledgeRequest(payload, `ipc:${IPC_CHANNELS.alarms.acknowledge}`))
+  ))
+
+  handleIpc<AlarmHistoryResult>(IPC_CHANNELS.alarms.queryHistory, logger, (payload) => (
+    alarmManager.queryAlarmHistory(parseAlarmHistoryQuery(payload, `ipc:${IPC_CHANNELS.alarms.queryHistory}`))
+  ))
+
+  handleIpc<RealtimeTrendSnapshot>(IPC_CHANNELS.trends.getRealtimeSnapshot, logger, (payload) => (
+    trendManager.getRealtimeTrendSnapshot(
+      parseRealtimeTrendRequest(payload, `ipc:${IPC_CHANNELS.trends.getRealtimeSnapshot}`)
+    )
+  ))
+
+  handleIpc<void>(IPC_CHANNELS.trends.subscribeRealtime, logger, (payload, event) => {
+    const request = parseRealtimeTrendRequest(payload, `ipc:${IPC_CHANNELS.trends.subscribeRealtime}`)
+    trendSubscription.addSubscriber(event.sender, request.tagIds)
+  })
+
+  handleIpc<void>(IPC_CHANNELS.trends.unsubscribeRealtime, logger, (_payload, event) => {
+    trendSubscription.removeSubscriber(event.sender.id)
+  })
+
+  handleIpc<HistoricalTrendResult>(IPC_CHANNELS.trends.queryHistorical, logger, (payload) => (
+    trendManager.queryHistoricalTrend(parseHistoricalTrendQuery(payload, `ipc:${IPC_CHANNELS.trends.queryHistorical}`))
+  ))
 }
 
 function handleIpc<TResult>(
@@ -250,6 +329,61 @@ function createDefaultCommandManager(): CommandManagerApi {
 }
 
 function createNoopDeviceStateSubscription(): DeviceStateSubscriptionApi {
+  return {
+    addSubscriber: () => undefined,
+    removeSubscriber: () => undefined
+  }
+}
+
+function createDefaultAlarmManager(): AlarmManagerApi {
+  const createNotConfiguredError = () => createAppError({
+    code: 'ALARM_SERVICE_NOT_CONFIGURED',
+    message: 'AlarmEngine is not configured.',
+    source: 'main:ipc-register'
+  })
+
+  return {
+    getAlarmSnapshot: () => ({
+      occurrences: [],
+      emittedAt: new Date().toISOString()
+    }),
+    acknowledgeAlarm: () => {
+      throw createNotConfiguredError()
+    },
+    queryAlarmHistory: () => ({
+      rows: [],
+      emittedAt: new Date().toISOString()
+    })
+  }
+}
+
+function createNoopAlarmSubscription(): AlarmSubscriptionApi {
+  return {
+    addSubscriber: () => undefined,
+    removeSubscriber: () => undefined
+  }
+}
+
+function createDefaultTrendManager(): TrendManagerApi {
+  return {
+    getRealtimeTrendSnapshot: () => ({
+      points: [],
+      emittedAt: new Date().toISOString()
+    }),
+    queryHistoricalTrend: (query) => {
+      const now = new Date().toISOString()
+      return {
+        points: [],
+        aggregated: false,
+        startTime: query.startTime ?? now,
+        endTime: query.endTime ?? now,
+        emittedAt: now
+      }
+    }
+  }
+}
+
+function createNoopTrendSubscription(): TrendSubscriptionApi {
   return {
     addSubscriber: () => undefined,
     removeSubscriber: () => undefined

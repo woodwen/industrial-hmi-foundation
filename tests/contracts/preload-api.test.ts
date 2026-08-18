@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import type {
+  AlarmAcknowledgeRequest,
+  AlarmChangedEvent,
+  AlarmHistoryQuery,
+  AlarmHistoryResult,
+  AlarmListener,
+  AlarmOccurrence,
+  AlarmSnapshot,
   AppUpdateEvent,
   AppInfo,
   AppUpdateListener,
@@ -14,9 +21,15 @@ import type {
   DeviceWriteRequest,
   DeviceWriteResponse,
   ErrorReportInput,
+  HistoricalTrendQuery,
+  HistoricalTrendResult,
   HmiApi,
   HmiResult,
   LogEntryInput,
+  RealtimeTrendChangedEvent,
+  RealtimeTrendListener,
+  RealtimeTrendRequest,
+  RealtimeTrendSnapshot,
   TagSnapshot,
   TagValuesChangedEvent,
   TagValuesListener
@@ -93,6 +106,19 @@ describe('Preload HMI API contract', () => {
     expectTypeOf<HmiApi['tags']['getSnapshot']>().returns.toEqualTypeOf<Promise<HmiResult<TagSnapshot>>>()
     expectTypeOf<HmiApi['tags']['subscribeValues']>().parameters.toEqualTypeOf<[TagValuesListener]>()
     expectTypeOf<HmiApi['tags']['subscribeValues']>().returns.toEqualTypeOf<() => void>()
+    expectTypeOf<HmiApi['alarms']['getSnapshot']>().returns.toEqualTypeOf<Promise<HmiResult<AlarmSnapshot>>>()
+    expectTypeOf<HmiApi['alarms']['subscribe']>().parameters.toEqualTypeOf<[AlarmListener]>()
+    expectTypeOf<HmiApi['alarms']['subscribe']>().returns.toEqualTypeOf<() => void>()
+    expectTypeOf<HmiApi['alarms']['acknowledge']>().parameters.toEqualTypeOf<[AlarmAcknowledgeRequest]>()
+    expectTypeOf<HmiApi['alarms']['acknowledge']>().returns.toEqualTypeOf<Promise<HmiResult<AlarmOccurrence>>>()
+    expectTypeOf<HmiApi['alarms']['queryHistory']>().parameters.toEqualTypeOf<[AlarmHistoryQuery]>()
+    expectTypeOf<HmiApi['alarms']['queryHistory']>().returns.toEqualTypeOf<Promise<HmiResult<AlarmHistoryResult>>>()
+    expectTypeOf<HmiApi['trends']['getRealtimeSnapshot']>().parameters.toEqualTypeOf<[RealtimeTrendRequest]>()
+    expectTypeOf<HmiApi['trends']['getRealtimeSnapshot']>().returns.toEqualTypeOf<Promise<HmiResult<RealtimeTrendSnapshot>>>()
+    expectTypeOf<HmiApi['trends']['subscribeRealtime']>().parameters.toEqualTypeOf<[RealtimeTrendRequest, RealtimeTrendListener]>()
+    expectTypeOf<HmiApi['trends']['subscribeRealtime']>().returns.toEqualTypeOf<() => void>()
+    expectTypeOf<HmiApi['trends']['queryHistorical']>().parameters.toEqualTypeOf<[HistoricalTrendQuery]>()
+    expectTypeOf<HmiApi['trends']['queryHistorical']>().returns.toEqualTypeOf<Promise<HmiResult<HistoricalTrendResult>>>()
   })
 
   it('routes device methods through dedicated IPC channels', async () => {
@@ -221,6 +247,115 @@ describe('Preload HMI API contract', () => {
     )
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.unsubscribeState)
   })
+
+  it('routes alarm methods and subscription through dedicated IPC channels', async () => {
+    await import('../../src/preload/index')
+    const hmiApi = electronMocks.exposedApis.get('hmi') as HmiApi
+    const listener = vi.fn<AlarmListener>()
+    const acknowledgeRequest: AlarmAcknowledgeRequest = {
+      occurrenceId: 'alarm-temp-high-1787011200000'
+    }
+    const historyQuery: AlarmHistoryQuery = {
+      level: 'High',
+      status: 'Recovered',
+      tagId: 'currentTemperature',
+      acknowledgeUser: 'operator'
+    }
+
+    await hmiApi.alarms.getSnapshot()
+    const unsubscribe = hmiApi.alarms.subscribe(listener)
+    emitAlarmEvent({
+      occurrences: [{
+        id: acknowledgeRequest.occurrenceId,
+        definitionId: 'alarm-temp-high',
+        code: 'TEMP_HIGH',
+        tagId: 'currentTemperature',
+        level: 'High',
+        message: 'Temperature is too high',
+        status: 'Active',
+        triggerTime: '2026-08-18T00:00:00.000Z',
+        triggerValue: 82,
+        conditionActive: true,
+        updatedAt: '2026-08-18T00:00:00.000Z'
+      }],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })
+    await hmiApi.alarms.acknowledge(acknowledgeRequest)
+    await hmiApi.alarms.queryHistory(historyQuery)
+
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.alarms.getSnapshot)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.alarms.subscribe)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.alarms.acknowledge,
+      acknowledgeRequest
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.alarms.queryHistory,
+      historyQuery
+    )
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      occurrences: expect.any(Array)
+    }))
+
+    unsubscribe()
+
+    expect(electronMocks.ipcRenderer.removeListener).toHaveBeenCalledWith(
+      IPC_CHANNELS.alarms.changed,
+      expect.any(Function)
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.alarms.unsubscribe)
+  })
+
+  it('routes realtime and historical trend methods through dedicated IPC channels', async () => {
+    await import('../../src/preload/index')
+    const hmiApi = electronMocks.exposedApis.get('hmi') as HmiApi
+    const listener = vi.fn<RealtimeTrendListener>()
+    const request: RealtimeTrendRequest = {
+      tagIds: ['currentTemperature', 'currentLevel']
+    }
+    const historicalQuery: HistoricalTrendQuery = {
+      tagIds: ['currentTemperature'],
+      preset: 'last1h',
+      maxPointsPerTag: 1000
+    }
+
+    await hmiApi.trends.getRealtimeSnapshot(request)
+    const unsubscribe = hmiApi.trends.subscribeRealtime(request, listener)
+    emitRealtimeTrendEvent({
+      points: [{
+        tagId: 'currentTemperature',
+        timestamp: '2026-08-18T00:00:00.000Z',
+        value: 26,
+        quality: 'Good'
+      }],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })
+    await hmiApi.trends.queryHistorical(historicalQuery)
+
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.trends.getRealtimeSnapshot,
+      request
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.trends.subscribeRealtime,
+      request
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.trends.queryHistorical,
+      historicalQuery
+    )
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      points: expect.any(Array)
+    }))
+
+    unsubscribe()
+
+    expect(electronMocks.ipcRenderer.removeListener).toHaveBeenCalledWith(
+      IPC_CHANNELS.trends.realtimeChanged,
+      expect.any(Function)
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.trends.unsubscribeRealtime)
+  })
 })
 
 function emitUpdateEvent(event: AppUpdateEvent): void {
@@ -237,6 +372,18 @@ function emitTagValuesEvent(event: TagValuesChangedEvent): void {
 
 function emitDeviceStateEvent(event: DeviceStateChangedEvent): void {
   electronMocks.listeners.get(IPC_CHANNELS.devices.stateChanged)?.forEach((listener) => {
+    listener({}, event)
+  })
+}
+
+function emitAlarmEvent(event: AlarmChangedEvent): void {
+  electronMocks.listeners.get(IPC_CHANNELS.alarms.changed)?.forEach((listener) => {
+    listener({}, event)
+  })
+}
+
+function emitRealtimeTrendEvent(event: RealtimeTrendChangedEvent): void {
+  electronMocks.listeners.get(IPC_CHANNELS.trends.realtimeChanged)?.forEach((listener) => {
     listener({}, event)
   })
 }

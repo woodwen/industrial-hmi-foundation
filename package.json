@@ -24,6 +24,7 @@
     "simulator:dev": "npm run simulator:start"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "builder-util-runtime": "9.7.0",
     "electron-updater": "^6.8.9",
     "mobx": "^6.13.5",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.8.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -52,6 +54,9 @@
     "productName": "Industrial HMI Foundation",
     "artifactName": "Industrial-HMI-Foundation-${version}-${arch}.${ext}",
     "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
     "directories": {
       "output": "release"
     },

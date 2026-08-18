@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { CommandManagerApi, DeviceManagerApi, UpdateManagerApi } from '../../src/main/ipc/register'
+import type {
+  AlarmManagerApi,
+  AlarmSubscriptionApi,
+  CommandManagerApi,
+  DeviceManagerApi,
+  TrendManagerApi,
+  TrendSubscriptionApi,
+  UpdateManagerApi
+} from '../../src/main/ipc/register'
 import type { Logger } from '../../src/main/logging/logger'
 import type { DeviceCommandResult, DeviceReadResponse, DeviceStatus, HmiResult } from '../../src/shared/hmi-api'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
@@ -237,6 +245,149 @@ describe('Device IPC registration', () => {
     expect(deviceStateSubscription.addSubscriber).toHaveBeenCalledWith(sender)
     expect(deviceStateSubscription.removeSubscriber).toHaveBeenCalledWith(8)
   })
+
+  it('routes alarm handlers and subscriptions through the typed Alarm service boundary', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const alarmManager = createAlarmManager()
+    const alarmSubscription = createAlarmSubscription()
+    const sender = {
+      id: 9
+    }
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      {
+        getTagSnapshot: () => createTagSnapshot()
+      },
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createCommandManager(),
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      alarmManager,
+      alarmSubscription
+    )
+
+    expect(await getHandler(IPC_CHANNELS.alarms.getSnapshot)({}, undefined)).toMatchObject({
+      ok: true,
+      data: {
+        occurrences: expect.any(Array)
+      }
+    })
+    await getHandler(IPC_CHANNELS.alarms.subscribe)({ sender }, undefined)
+    await getHandler(IPC_CHANNELS.alarms.unsubscribe)({ sender }, undefined)
+    expect(await getHandler(IPC_CHANNELS.alarms.acknowledge)({}, {
+      occurrenceId: 'alarm-temp-high-1787011200000'
+    })).toMatchObject({
+      ok: true,
+      data: {
+        status: 'Acknowledged'
+      }
+    })
+    expect(await getHandler(IPC_CHANNELS.alarms.queryHistory)({}, {
+      level: 'High',
+      status: 'Acknowledged',
+      tagId: 'currentTemperature',
+      acknowledgeUser: 'operator'
+    })).toMatchObject({
+      ok: true,
+      data: {
+        rows: expect.any(Array)
+      }
+    })
+
+    expect(alarmManager.acknowledgeAlarm).toHaveBeenCalledWith({
+      occurrenceId: 'alarm-temp-high-1787011200000',
+      user: undefined
+    })
+    expect(alarmManager.queryAlarmHistory).toHaveBeenCalledWith(expect.objectContaining({
+      level: 'High',
+      status: 'Acknowledged',
+      tagId: 'currentTemperature',
+      acknowledgeUser: 'operator'
+    }))
+    expect(alarmSubscription.addSubscriber).toHaveBeenCalledWith(sender)
+    expect(alarmSubscription.removeSubscriber).toHaveBeenCalledWith(9)
+  })
+
+  it('routes trend handlers and subscriptions through the typed Trend service boundary', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const trendManager = createTrendManager()
+    const trendSubscription = createTrendSubscription()
+    const sender = {
+      id: 10
+    }
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      {
+        getTagSnapshot: () => createTagSnapshot()
+      },
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createCommandManager(),
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createAlarmManager(),
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      trendManager,
+      trendSubscription
+    )
+
+    expect(await getHandler(IPC_CHANNELS.trends.getRealtimeSnapshot)({}, {
+      tagIds: ['currentTemperature']
+    })).toMatchObject({
+      ok: true,
+      data: {
+        points: expect.any(Array)
+      }
+    })
+    await getHandler(IPC_CHANNELS.trends.subscribeRealtime)({ sender }, {
+      tagIds: ['currentTemperature', 'currentPressure']
+    })
+    await getHandler(IPC_CHANNELS.trends.unsubscribeRealtime)({ sender }, undefined)
+    expect(await getHandler(IPC_CHANNELS.trends.queryHistorical)({}, {
+      tagIds: ['currentTemperature'],
+      preset: 'last1h',
+      maxPointsPerTag: 1000
+    })).toMatchObject({
+      ok: true,
+      data: {
+        aggregated: false
+      }
+    })
+
+    expect(trendManager.getRealtimeTrendSnapshot).toHaveBeenCalledWith({
+      tagIds: ['currentTemperature']
+    })
+    expect(trendManager.queryHistoricalTrend).toHaveBeenCalledWith({
+      tagIds: ['currentTemperature'],
+      preset: 'last1h',
+      startTime: undefined,
+      endTime: undefined,
+      maxPointsPerTag: 1000
+    })
+    expect(trendSubscription.addSubscriber).toHaveBeenCalledWith(sender, [
+      'currentTemperature',
+      'currentPressure'
+    ])
+    expect(trendSubscription.removeSubscriber).toHaveBeenCalledWith(10)
+  })
 })
 
 function getHandler(channel: string): (event: unknown, payload: unknown) => Promise<unknown> {
@@ -309,6 +460,64 @@ function createCommandManager(): CommandManagerApi {
       },
       timestamp: '2026-08-18T00:00:00.000Z'
     })
+  }
+}
+
+function createAlarmManager(): AlarmManagerApi {
+  return {
+    getAlarmSnapshot: vi.fn<AlarmManagerApi['getAlarmSnapshot']>(() => ({
+      occurrences: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    acknowledgeAlarm: vi.fn<AlarmManagerApi['acknowledgeAlarm']>(() => ({
+      id: 'alarm-temp-high-1787011200000',
+      definitionId: 'alarm-temp-high',
+      code: 'TEMP_HIGH',
+      tagId: 'currentTemperature',
+      level: 'High',
+      message: 'Temperature is too high',
+      status: 'Acknowledged',
+      triggerTime: '2026-08-18T00:00:00.000Z',
+      acknowledgeTime: '2026-08-18T00:01:00.000Z',
+      triggerValue: 82,
+      acknowledgeUser: 'operator',
+      conditionActive: true,
+      updatedAt: '2026-08-18T00:01:00.000Z'
+    })),
+    queryAlarmHistory: vi.fn<AlarmManagerApi['queryAlarmHistory']>(() => ({
+      rows: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    }))
+  }
+}
+
+function createAlarmSubscription(): AlarmSubscriptionApi {
+  return {
+    addSubscriber: vi.fn(),
+    removeSubscriber: vi.fn()
+  }
+}
+
+function createTrendManager(): TrendManagerApi {
+  return {
+    getRealtimeTrendSnapshot: vi.fn<TrendManagerApi['getRealtimeTrendSnapshot']>(() => ({
+      points: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    queryHistoricalTrend: vi.fn<TrendManagerApi['queryHistoricalTrend']>(() => ({
+      points: [],
+      aggregated: false,
+      startTime: '2026-08-18T00:00:00.000Z',
+      endTime: '2026-08-18T01:00:00.000Z',
+      emittedAt: '2026-08-18T01:00:00.000Z'
+    }))
+  }
+}
+
+function createTrendSubscription(): TrendSubscriptionApi {
+  return {
+    addSubscriber: vi.fn(),
+    removeSubscriber: vi.fn()
   }
 }
 

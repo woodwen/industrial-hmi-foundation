@@ -65,6 +65,28 @@ export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiA
     executeCommand: vi.fn<HmiApiClient['executeCommand']>().mockResolvedValue(success(createCommandResult())),
     getTagSnapshot: vi.fn<HmiApiClient['getTagSnapshot']>().mockResolvedValue(success(createTagSnapshot())),
     subscribeTagValues: vi.fn<HmiApiClient['subscribeTagValues']>(() => () => undefined),
+    getAlarmSnapshot: vi.fn<HmiApiClient['getAlarmSnapshot']>().mockResolvedValue(success({
+      occurrences: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    subscribeAlarms: vi.fn<HmiApiClient['subscribeAlarms']>(() => () => undefined),
+    acknowledgeAlarm: vi.fn<HmiApiClient['acknowledgeAlarm']>().mockRejectedValue(new Error('No alarm occurrence.')),
+    queryAlarmHistory: vi.fn<HmiApiClient['queryAlarmHistory']>().mockResolvedValue(success({
+      rows: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    getRealtimeTrendSnapshot: vi.fn<HmiApiClient['getRealtimeTrendSnapshot']>().mockResolvedValue(success({
+      points: [],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    subscribeRealtimeTrend: vi.fn<HmiApiClient['subscribeRealtimeTrend']>(() => () => undefined),
+    queryHistoricalTrend: vi.fn<HmiApiClient['queryHistoricalTrend']>().mockResolvedValue(success({
+      points: [],
+      aggregated: false,
+      startTime: '2026-08-18T00:00:00.000Z',
+      endTime: '2026-08-18T00:00:00.000Z',
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
     ...overrides
   }
 }

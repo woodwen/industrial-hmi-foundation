@@ -1,4 +1,10 @@
 import type {
+  AlarmAcknowledgeRequest,
+  AlarmHistoryQuery,
+  AlarmHistoryResult,
+  AlarmListener,
+  AlarmOccurrence,
+  AlarmSnapshot,
   AppInfo,
   AppUpdateListener,
   DeviceCommandRequest,
@@ -10,8 +16,13 @@ import type {
   DeviceWriteRequest,
   DeviceWriteResponse,
   ErrorReportInput,
+  HistoricalTrendQuery,
+  HistoricalTrendResult,
   HmiResult,
   LogEntryInput,
+  RealtimeTrendListener,
+  RealtimeTrendRequest,
+  RealtimeTrendSnapshot,
   TagSnapshot,
   TagValuesListener,
   Unsubscribe
@@ -89,5 +100,33 @@ export class HmiApiBrowserClient implements HmiApiClient {
 
   subscribeTagValues(listener: TagValuesListener): Unsubscribe {
     return window.hmi.tags.subscribeValues(listener)
+  }
+
+  getAlarmSnapshot(): Promise<HmiResult<AlarmSnapshot>> {
+    return window.hmi.alarms.getSnapshot()
+  }
+
+  subscribeAlarms(listener: AlarmListener): Unsubscribe {
+    return window.hmi.alarms.subscribe(listener)
+  }
+
+  acknowledgeAlarm(request: AlarmAcknowledgeRequest): Promise<HmiResult<AlarmOccurrence>> {
+    return window.hmi.alarms.acknowledge(request)
+  }
+
+  queryAlarmHistory(query: AlarmHistoryQuery): Promise<HmiResult<AlarmHistoryResult>> {
+    return window.hmi.alarms.queryHistory(query)
+  }
+
+  getRealtimeTrendSnapshot(request: RealtimeTrendRequest): Promise<HmiResult<RealtimeTrendSnapshot>> {
+    return window.hmi.trends.getRealtimeSnapshot(request)
+  }
+
+  subscribeRealtimeTrend(request: RealtimeTrendRequest, listener: RealtimeTrendListener): Unsubscribe {
+    return window.hmi.trends.subscribeRealtime(request, listener)
+  }
+
+  queryHistoricalTrend(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>> {
+    return window.hmi.trends.queryHistorical(query)
   }
 }

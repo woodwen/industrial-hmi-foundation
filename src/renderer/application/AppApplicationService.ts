@@ -1,4 +1,10 @@
 import type {
+  AlarmAcknowledgeRequest,
+  AlarmHistoryQuery,
+  AlarmHistoryResult,
+  AlarmListener,
+  AlarmOccurrence,
+  AlarmSnapshot,
   AppInfo,
   AppUpdateListener,
   DeviceCommandRequest,
@@ -10,8 +16,13 @@ import type {
   DeviceWriteRequest,
   DeviceWriteResponse,
   ErrorReportInput,
+  HistoricalTrendQuery,
+  HistoricalTrendResult,
   HmiResult,
   LogEntryInput,
+  RealtimeTrendListener,
+  RealtimeTrendRequest,
+  RealtimeTrendSnapshot,
   TagSnapshot,
   TagValuesListener,
   Unsubscribe
@@ -36,6 +47,13 @@ export interface HmiApiClient {
   executeCommand(request: DeviceCommandRequest): Promise<HmiResult<DeviceCommandResult>>
   getTagSnapshot(): Promise<HmiResult<TagSnapshot>>
   subscribeTagValues(listener: TagValuesListener): Unsubscribe
+  getAlarmSnapshot(): Promise<HmiResult<AlarmSnapshot>>
+  subscribeAlarms(listener: AlarmListener): Unsubscribe
+  acknowledgeAlarm(request: AlarmAcknowledgeRequest): Promise<HmiResult<AlarmOccurrence>>
+  queryAlarmHistory(query: AlarmHistoryQuery): Promise<HmiResult<AlarmHistoryResult>>
+  getRealtimeTrendSnapshot(request: RealtimeTrendRequest): Promise<HmiResult<RealtimeTrendSnapshot>>
+  subscribeRealtimeTrend(request: RealtimeTrendRequest, listener: RealtimeTrendListener): Unsubscribe
+  queryHistoricalTrend(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>>
 }
 
 export class AppApplicationService {
@@ -117,5 +135,33 @@ export class AppApplicationService {
 
   subscribeTagValues(listener: TagValuesListener): Unsubscribe {
     return this.apiClient.subscribeTagValues(listener)
+  }
+
+  getAlarmSnapshot(): Promise<HmiResult<AlarmSnapshot>> {
+    return this.apiClient.getAlarmSnapshot()
+  }
+
+  subscribeAlarms(listener: AlarmListener): Unsubscribe {
+    return this.apiClient.subscribeAlarms(listener)
+  }
+
+  acknowledgeAlarm(request: AlarmAcknowledgeRequest): Promise<HmiResult<AlarmOccurrence>> {
+    return this.apiClient.acknowledgeAlarm(request)
+  }
+
+  queryAlarmHistory(query: AlarmHistoryQuery): Promise<HmiResult<AlarmHistoryResult>> {
+    return this.apiClient.queryAlarmHistory(query)
+  }
+
+  getRealtimeTrendSnapshot(request: RealtimeTrendRequest): Promise<HmiResult<RealtimeTrendSnapshot>> {
+    return this.apiClient.getRealtimeTrendSnapshot(request)
+  }
+
+  subscribeRealtimeTrend(request: RealtimeTrendRequest, listener: RealtimeTrendListener): Unsubscribe {
+    return this.apiClient.subscribeRealtimeTrend(request, listener)
+  }
+
+  queryHistoricalTrend(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>> {
+    return this.apiClient.queryHistoricalTrend(query)
   }
 }

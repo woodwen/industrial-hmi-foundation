@@ -1,8 +1,38 @@
 import type { AppErrorShape } from './app-error'
+import type {
+  AlarmAcknowledgeRequest,
+  AlarmChangedEvent,
+  AlarmHistoryQuery,
+  AlarmHistoryResult,
+  AlarmOccurrence,
+  AlarmSnapshot
+} from './alarm'
 import type { ModbusEngineeringValue, ModbusPointId, ModbusRawValue, ModbusRegisterArea } from './modbus'
 import type { TagSnapshot, TagValuesChangedEvent } from './tag'
+import type {
+  HistoricalTrendQuery,
+  HistoricalTrendResult,
+  RealtimeTrendChangedEvent,
+  RealtimeTrendRequest,
+  RealtimeTrendSnapshot
+} from './trend'
 
 export type { TagSnapshot, TagValuesChangedEvent } from './tag'
+export type {
+  AlarmAcknowledgeRequest,
+  AlarmChangedEvent,
+  AlarmHistoryQuery,
+  AlarmHistoryResult,
+  AlarmOccurrence,
+  AlarmSnapshot
+} from './alarm'
+export type {
+  HistoricalTrendQuery,
+  HistoricalTrendResult,
+  RealtimeTrendChangedEvent,
+  RealtimeTrendRequest,
+  RealtimeTrendSnapshot
+} from './trend'
 
 export type LogCategory = 'application' | 'communication' | 'error'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -164,6 +194,8 @@ export type AppUpdateEvent =
 export type AppUpdateListener = (event: AppUpdateEvent) => void
 export type DeviceStateListener = (event: DeviceStateChangedEvent) => void
 export type TagValuesListener = (event: TagValuesChangedEvent) => void
+export type AlarmListener = (event: AlarmChangedEvent) => void
+export type RealtimeTrendListener = (event: RealtimeTrendChangedEvent) => void
 export type Unsubscribe = () => void
 
 export type HmiResult<T> =
@@ -208,5 +240,16 @@ export interface HmiApi {
   tags: {
     getSnapshot(): Promise<HmiResult<TagSnapshot>>
     subscribeValues(listener: TagValuesListener): Unsubscribe
+  }
+  alarms: {
+    getSnapshot(): Promise<HmiResult<AlarmSnapshot>>
+    subscribe(listener: AlarmListener): Unsubscribe
+    acknowledge(request: AlarmAcknowledgeRequest): Promise<HmiResult<AlarmOccurrence>>
+    queryHistory(query: AlarmHistoryQuery): Promise<HmiResult<AlarmHistoryResult>>
+  }
+  trends: {
+    getRealtimeSnapshot(request: RealtimeTrendRequest): Promise<HmiResult<RealtimeTrendSnapshot>>
+    subscribeRealtime(request: RealtimeTrendRequest, listener: RealtimeTrendListener): Unsubscribe
+    queryHistorical(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>>
   }
 }

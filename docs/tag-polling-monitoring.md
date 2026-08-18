@@ -65,6 +65,7 @@ Tag 轮询本身不直接执行设备控制；设备状态机、自动重连、C
 | `motorRpm` | `30004` | `3` | UInt16 | `500ms` | RPM |
 | `productionCount` | `30005-30006` | `4` | UInt32 | `1000ms` | Production Count |
 | `deviceRunningStatus` | `10001` | `0` | Boolean | `500ms` | Running State |
+| `mixerMotorRunningStatus` | `10002` | `1` | Boolean | `500ms` | Device Tag Monitor |
 | `autoModeStatus` | `10005` | `4` | Boolean | `500ms` | Mode |
 | `targetTemperature` | `40001` | `0` | Int16 | `1000ms` | Device Tag Monitor |
 | `manualMotorRpmSetpoint` | `40002` | `1` | UInt16 | `1000ms` | Device Tag Monitor |

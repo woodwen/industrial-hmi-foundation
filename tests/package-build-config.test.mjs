@@ -45,6 +45,14 @@ describe('package build config', () => {
     expect(releaseWorkflow).not.toContain('npm publish')
   })
 
+  it('unpacks the SQLite native module from asar packages', () => {
+    expect(packageJson.dependencies).toHaveProperty('better-sqlite3')
+    expect(packageJson.build.asar).toBe(true)
+    expect(packageJson.build.asarUnpack).toEqual(expect.arrayContaining([
+      'node_modules/better-sqlite3/**'
+    ]))
+  })
+
   it('prepares the next dev version after publishing without creating release loops', () => {
     expect(releaseWorkflow).toContain('prepare-next-dev-version:')
     expect(releaseWorkflow).toContain('git ls-remote --exit-code --heads origin dev')

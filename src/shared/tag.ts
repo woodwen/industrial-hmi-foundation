@@ -101,6 +101,10 @@ const DEFAULT_TAG_METADATA = {
     displayOrder: 60,
     dashboardRole: 'runningState'
   },
+  mixerMotorRunningStatus: {
+    scanRate: 500,
+    displayOrder: 65
+  },
   autoModeStatus: {
     scanRate: 500,
     displayOrder: 70,
@@ -123,6 +127,7 @@ export const DEFAULT_MONITORING_TAG_IDS = [
   'motorRpm',
   'productionCount',
   'deviceRunningStatus',
+  'mixerMotorRunningStatus',
   'autoModeStatus',
   'targetTemperature',
   'manualMotorRpmSetpoint'

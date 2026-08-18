@@ -34,5 +34,20 @@ export const IPC_CHANNELS = {
     subscribe: 'hmi:tags:subscribe',
     unsubscribe: 'hmi:tags:unsubscribe',
     valuesChanged: 'hmi:tags:values-changed'
+  },
+  alarms: {
+    getSnapshot: 'hmi:alarms:get-snapshot',
+    subscribe: 'hmi:alarms:subscribe',
+    unsubscribe: 'hmi:alarms:unsubscribe',
+    changed: 'hmi:alarms:changed',
+    acknowledge: 'hmi:alarms:acknowledge',
+    queryHistory: 'hmi:alarms:query-history'
+  },
+  trends: {
+    getRealtimeSnapshot: 'hmi:trends:get-realtime-snapshot',
+    subscribeRealtime: 'hmi:trends:subscribe-realtime',
+    unsubscribeRealtime: 'hmi:trends:unsubscribe-realtime',
+    realtimeChanged: 'hmi:trends:realtime-changed',
+    queryHistorical: 'hmi:trends:query-historical'
   }
 } as const

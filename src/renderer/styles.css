@@ -681,6 +681,135 @@ button {
   width: 100%;
 }
 
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #d5dee8;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+.filter-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.filter-grid label span {
+  color: #41576d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filter-grid input,
+.filter-grid select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #c7d4e1;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.filter-grid input:disabled,
+.filter-grid select:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.alarm-table {
+  display: grid;
+  overflow: auto;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+}
+
+.alarm-table-row {
+  display: grid;
+  grid-template-columns:
+    minmax(96px, 0.6fr)
+    minmax(126px, 0.7fr)
+    minmax(190px, 1fr)
+    minmax(150px, 0.9fr)
+    minmax(220px, 1.4fr)
+    minmax(150px, 0.8fr)
+    minmax(132px, 0.7fr);
+  min-width: 1064px;
+  border-bottom: 1px solid #d8e0eb;
+}
+
+.alarm-history-row {
+  grid-template-columns:
+    minmax(96px, 0.55fr)
+    minmax(126px, 0.7fr)
+    minmax(190px, 1fr)
+    minmax(190px, 1fr)
+    minmax(150px, 0.8fr)
+    minmax(130px, 0.7fr)
+    minmax(150px, 0.8fr);
+}
+
+.alarm-table-row:last-child {
+  border-bottom: 0;
+}
+
+.alarm-table-header {
+  color: #41576d;
+  background: #e9eff6;
+  font-weight: 700;
+}
+
+.alarm-table-row span {
+  min-width: 0;
+  min-height: 42px;
+  border-right: 1px solid #d8e0eb;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.alarm-table-row span:last-child {
+  border-right: 0;
+}
+
+.alarm-empty-row {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.alarm-level {
+  font-weight: 700;
+}
+
+.alarm-level-info {
+  color: #315a7f;
+}
+
+.alarm-level-warning {
+  color: #76540b;
+}
+
+.alarm-level-high {
+  color: #9b3f0b;
+}
+
+.alarm-level-critical {
+  color: #8b2521;
+}
+
+.table-action {
+  width: 100%;
+}
+
 .coil-control-row {
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) minmax(64px, auto);
@@ -703,42 +832,78 @@ button {
   color: #607589;
 }
 
-.trend-grid {
-  position: relative;
-  min-height: 260px;
-  overflow: hidden;
+.trend-tag-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trend-tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.trend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.trend-chart,
+.trend-chart-empty {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
   background:
     linear-gradient(#eef4f8 1px, transparent 1px),
     linear-gradient(90deg, #eef4f8 1px, transparent 1px),
     #ffffff;
-  background-size: 32px 32px;
+  background-size: 40px 40px;
 }
 
-.trend-line {
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  height: 3px;
-  border-radius: 999px;
+.trend-chart-empty {
+  display: grid;
+  place-items: center;
+  color: #61778b;
+  font-weight: 700;
 }
 
-.trend-line-a {
-  top: 92px;
-  background: #3b82f6;
-  transform: rotate(-2deg);
+.trend-grid-line {
+  stroke: #dce6ef;
+  stroke-width: 1;
 }
 
-.trend-line-b {
-  top: 142px;
-  background: #4fb69f;
-  transform: rotate(3deg);
+.trend-path {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.trend-grid p {
-  position: absolute;
-  right: 20px;
-  bottom: 18px;
-  margin: 0;
+.trend-quality-point {
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.trend-quality-point.quality-bad {
+  fill: #c2410c;
+}
+
+.trend-quality-point.quality-uncertain {
+  fill: #ca8a04;
+}
+
+.trend-axis-label {
+  fill: #607589;
+  font-size: 12px;
 }
 
 .settings-list {

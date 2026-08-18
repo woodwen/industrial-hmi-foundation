@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  parseAlarmAcknowledgeRequest,
+  parseAlarmHistoryQuery,
   parseDeviceCommandRequest,
   parseDeviceReadRequest,
   parseDeviceWriteRequest,
   parseErrorReportInput,
-  parseLogEntryInput
+  parseHistoricalTrendQuery,
+  parseLogEntryInput,
+  parseRealtimeTrendRequest
 } from '../../src/main/ipc/input-validation'
 
 describe('IPC input validation', () => {
@@ -141,6 +145,87 @@ describe('IPC input validation', () => {
     expectInvalidPayload(() => {
       parseDeviceCommandRequest({
         commandId: 'autoMode'
+      }, 'ipc:test')
+    })
+  })
+
+  it('accepts valid alarm and trend payloads', () => {
+    expect(parseAlarmAcknowledgeRequest({
+      occurrenceId: 'alarm-temp-high-1787011200000',
+      user: 'operator'
+    }, 'ipc:test')).toEqual({
+      occurrenceId: 'alarm-temp-high-1787011200000',
+      user: 'operator'
+    })
+
+    expect(parseAlarmHistoryQuery({
+      level: 'High',
+      status: 'Recovered',
+      tagId: 'currentTemperature',
+      acknowledgeUser: 'operator',
+      startTime: '2026-08-18T00:00:00.000Z',
+      endTime: '2026-08-18T01:00:00.000Z',
+      limit: 200
+    }, 'ipc:test')).toEqual({
+      level: 'High',
+      status: 'Recovered',
+      tagId: 'currentTemperature',
+      acknowledgeUser: 'operator',
+      startTime: '2026-08-18T00:00:00.000Z',
+      endTime: '2026-08-18T01:00:00.000Z',
+      limit: 200
+    })
+
+    expect(parseRealtimeTrendRequest({
+      tagIds: ['currentTemperature', 'currentPressure']
+    }, 'ipc:test')).toEqual({
+      tagIds: ['currentTemperature', 'currentPressure']
+    })
+
+    expect(parseHistoricalTrendQuery({
+      tagIds: ['currentTemperature'],
+      preset: 'custom',
+      startTime: '2026-08-18T00:00:00.000Z',
+      endTime: '2026-08-18T01:00:00.000Z',
+      maxPointsPerTag: 1000
+    }, 'ipc:test')).toEqual({
+      tagIds: ['currentTemperature'],
+      preset: 'custom',
+      startTime: '2026-08-18T00:00:00.000Z',
+      endTime: '2026-08-18T01:00:00.000Z',
+      maxPointsPerTag: 1000
+    })
+  })
+
+  it('rejects invalid alarm and trend payloads', () => {
+    expectInvalidPayload(() => {
+      parseAlarmAcknowledgeRequest({
+        occurrenceId: ''
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseAlarmHistoryQuery({
+        level: 'Emergency'
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseRealtimeTrendRequest({
+        tagIds: []
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseHistoricalTrendQuery({
+        tagIds: ['currentTemperature'],
+        preset: 'custom',
+        startTime: '2026-08-18T00:00:00.000Z'
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseHistoricalTrendQuery({
+        tagIds: ['currentTemperature'],
+        preset: 'custom',
+        startTime: '2026-08-18T01:00:00.000Z',
+        endTime: '2026-08-18T00:00:00.000Z'
       }, 'ipc:test')
     })
   })

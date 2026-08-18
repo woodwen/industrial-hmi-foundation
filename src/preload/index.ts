@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 import type {
+  AlarmAcknowledgeRequest,
+  AlarmChangedEvent,
+  AlarmListener,
   AppUpdateEvent,
   AppUpdateListener,
   DeviceCommandRequest,
@@ -10,7 +13,11 @@ import type {
   DeviceWriteRequest,
   ErrorReportInput,
   HmiApi,
+  HistoricalTrendQuery,
   LogEntryInput,
+  RealtimeTrendChangedEvent,
+  RealtimeTrendListener,
+  RealtimeTrendRequest,
   TagValuesChangedEvent,
   TagValuesListener
 } from '../shared/hmi-api'
@@ -93,6 +100,50 @@ const hmiApi: HmiApi = {
         void ipcRenderer.invoke(IPC_CHANNELS.tags.unsubscribe)
       }
     }
+  },
+  alarms: {
+    getSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.alarms.getSnapshot),
+    subscribe: (listener: AlarmListener) => {
+      const wrappedListener = (_event: IpcRendererEvent, alarmEvent: AlarmChangedEvent): void => {
+        listener(alarmEvent)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.alarms.changed, wrappedListener)
+      void ipcRenderer.invoke(IPC_CHANNELS.alarms.subscribe)
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.alarms.changed, wrappedListener)
+        void ipcRenderer.invoke(IPC_CHANNELS.alarms.unsubscribe)
+      }
+    },
+    acknowledge: (request: AlarmAcknowledgeRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.alarms.acknowledge,
+      request
+    ),
+    queryHistory: (query) => ipcRenderer.invoke(IPC_CHANNELS.alarms.queryHistory, query)
+  },
+  trends: {
+    getRealtimeSnapshot: (request: RealtimeTrendRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.trends.getRealtimeSnapshot,
+      request
+    ),
+    subscribeRealtime: (request: RealtimeTrendRequest, listener: RealtimeTrendListener) => {
+      const wrappedListener = (_event: IpcRendererEvent, trendEvent: RealtimeTrendChangedEvent): void => {
+        listener(trendEvent)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.trends.realtimeChanged, wrappedListener)
+      void ipcRenderer.invoke(IPC_CHANNELS.trends.subscribeRealtime, request)
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.trends.realtimeChanged, wrappedListener)
+        void ipcRenderer.invoke(IPC_CHANNELS.trends.unsubscribeRealtime)
+      }
+    },
+    queryHistorical: (query: HistoricalTrendQuery) => ipcRenderer.invoke(
+      IPC_CHANNELS.trends.queryHistorical,
+      query
+    )
   }
 }
 

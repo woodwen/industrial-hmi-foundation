@@ -99,6 +99,7 @@ describe('PLC Simulator process model', () => {
       })
 
       await adapter.disconnect()
+      await sleep(150)
       simulator.clearResponseDelay()
       await connectAdapter(adapter, port)
       simulator.failNextWrite()
@@ -114,6 +115,11 @@ describe('PLC Simulator process model', () => {
 
       await adapter.disconnect()
       await connectAdapter(adapter, port)
+      await adapter.read({
+        area: 'holdingRegister',
+        address: 0,
+        quantity: 1
+      })
       simulator.triggerNetworkError()
       await waitFor(() => adapter.getStatus().connectionStatus === 'Fault')
 
@@ -204,6 +210,12 @@ async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void
   }
 
   throw new Error('Timed out waiting for condition.')
+}
+
+async function sleep(durationMs: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, durationMs)
+  })
 }
 
 function createLogger(): Logger {

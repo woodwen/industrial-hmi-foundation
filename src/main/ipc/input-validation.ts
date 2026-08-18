@@ -1,4 +1,5 @@
 import { createAppError } from '../../shared/app-error'
+import { isAlarmLevel, isAlarmStatus, type AlarmHistoryQuery, type AlarmAcknowledgeRequest } from '../../shared/alarm'
 import type {
   DeviceCommandId,
   DeviceCommandRequest,
@@ -10,6 +11,12 @@ import type {
   LogLevel
 } from '../../shared/hmi-api'
 import { isModbusPointId, type ModbusEngineeringValue, type ModbusPointId } from '../../shared/modbus'
+import {
+  isTrendRangePreset,
+  type HistoricalTrendQuery,
+  type RealtimeTrendRequest,
+  type TrendRangePreset
+} from '../../shared/trend'
 
 const LOG_CATEGORIES: readonly LogCategory[] = ['application', 'communication', 'error']
 const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error']
@@ -88,6 +95,74 @@ export function parseDeviceCommandRequest(payload: unknown, source: string): Dev
   }
 }
 
+export function parseAlarmAcknowledgeRequest(payload: unknown, source: string): AlarmAcknowledgeRequest {
+  const record = requireRecord(payload, 'Alarm acknowledge payload must be an object.', source)
+
+  return {
+    occurrenceId: requireNonEmptyString(record.occurrenceId, 'Alarm occurrence id is required.', source),
+    user: parseOptionalString(record.user, 'Alarm acknowledge user must be a string.', source)
+  }
+}
+
+export function parseAlarmHistoryQuery(payload: unknown, source: string): AlarmHistoryQuery {
+  const record = requireRecord(payload, 'Alarm history query payload must be an object.', source)
+  const status = record.status === undefined || record.status === null
+    ? undefined
+    : requireAlarmHistoryStatus(record.status, source)
+
+  return {
+    level: record.level === undefined || record.level === null
+      ? undefined
+      : requireAlarmLevel(record.level, source),
+    status,
+    tagId: parseOptionalNonEmptyString(record.tagId, 'Alarm history tag id must be a string.', source),
+    acknowledgeUser: parseOptionalNonEmptyString(
+      record.acknowledgeUser,
+      'Alarm acknowledge user filter must be a string.',
+      source
+    ),
+    startTime: parseOptionalIsoTime(record.startTime, 'Alarm history startTime must be an ISO timestamp.', source),
+    endTime: parseOptionalIsoTime(record.endTime, 'Alarm history endTime must be an ISO timestamp.', source),
+    limit: parseOptionalPositiveInteger(record.limit, 'Alarm history limit must be a positive integer.', source)
+  }
+}
+
+export function parseRealtimeTrendRequest(payload: unknown, source: string): RealtimeTrendRequest {
+  const record = requireRecord(payload, 'Realtime trend payload must be an object.', source)
+  return {
+    tagIds: requireNonEmptyStringArray(record.tagIds, 'Realtime trend tagIds must be a non-empty array.', source)
+  }
+}
+
+export function parseHistoricalTrendQuery(payload: unknown, source: string): HistoricalTrendQuery {
+  const record = requireRecord(payload, 'Historical trend query payload must be an object.', source)
+  const preset = requireTrendRangePreset(record.preset, source)
+  const startTime = preset === 'custom'
+    ? requireIsoTime(record.startTime, 'Custom trend startTime must be an ISO timestamp.', source)
+    : parseOptionalIsoTime(record.startTime, 'Trend startTime must be an ISO timestamp.', source)
+  const endTime = preset === 'custom'
+    ? requireIsoTime(record.endTime, 'Custom trend endTime must be an ISO timestamp.', source)
+    : parseOptionalIsoTime(record.endTime, 'Trend endTime must be an ISO timestamp.', source)
+
+  if (preset === 'custom') {
+    if (startTime === undefined || endTime === undefined || Date.parse(startTime) > Date.parse(endTime)) {
+      throwInvalidPayload('Custom trend startTime must be before or equal to endTime.', source)
+    }
+  }
+
+  return {
+    tagIds: requireNonEmptyStringArray(record.tagIds, 'Historical trend tagIds must be a non-empty array.', source),
+    preset,
+    startTime,
+    endTime,
+    maxPointsPerTag: parseOptionalPositiveInteger(
+      record.maxPointsPerTag,
+      'Trend maxPointsPerTag must be a positive integer.',
+      source
+    )
+  }
+}
+
 function requireRecord(payload: unknown, message: string, source: string): Record<string, unknown> {
   if (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) {
     return payload as Record<string, unknown>
@@ -104,12 +179,58 @@ function requireString(value: unknown, message: string, source: string): string 
   throwInvalidPayload(message, source)
 }
 
+function requireNonEmptyString(value: unknown, message: string, source: string): string {
+  const text = requireString(value, message, source).trim()
+  if (text.length > 0) {
+    return text
+  }
+
+  throwInvalidPayload(message, source)
+}
+
 function parseOptionalString(value: unknown, message: string, source: string): string | undefined {
   if (value === undefined || value === null) {
     return undefined
   }
 
   if (typeof value === 'string') {
+    return value
+  }
+
+  throwInvalidPayload(message, source)
+}
+
+function parseOptionalNonEmptyString(value: unknown, message: string, source: string): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+
+  return requireNonEmptyString(value, message, source)
+}
+
+function requireIsoTime(value: unknown, message: string, source: string): string {
+  const timestamp = requireString(value, message, source)
+  if (Number.isFinite(Date.parse(timestamp))) {
+    return timestamp
+  }
+
+  throwInvalidPayload(message, source)
+}
+
+function parseOptionalIsoTime(value: unknown, message: string, source: string): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+
+  return requireIsoTime(value, message, source)
+}
+
+function parseOptionalPositiveInteger(value: unknown, message: string, source: string): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined
+  }
+
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
     return value
   }
 
@@ -144,6 +265,38 @@ function requirePointIdArray(value: unknown, source: string): ModbusPointId[] {
 
   const pointIds = value.map((entry) => requirePointId(entry, source))
   return Array.from(new Set(pointIds))
+}
+
+function requireNonEmptyStringArray(value: unknown, message: string, source: string): string[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throwInvalidPayload(message, source)
+  }
+
+  return Array.from(new Set(value.map((entry) => requireNonEmptyString(entry, message, source))))
+}
+
+function requireAlarmLevel(value: unknown, source: string) {
+  if (isAlarmLevel(value)) {
+    return value
+  }
+
+  throwInvalidPayload('Alarm level filter is invalid.', source)
+}
+
+function requireAlarmHistoryStatus(value: unknown, source: string) {
+  if (isAlarmStatus(value) && value !== 'Inactive') {
+    return value
+  }
+
+  throwInvalidPayload('Alarm status filter is invalid.', source)
+}
+
+function requireTrendRangePreset(value: unknown, source: string): TrendRangePreset {
+  if (isTrendRangePreset(value)) {
+    return value
+  }
+
+  throwInvalidPayload('Trend range preset is invalid.', source)
 }
 
 function requireEngineeringValue(value: unknown, source: string): ModbusEngineeringValue {
