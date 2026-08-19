@@ -20,19 +20,28 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
         'Renderer 是受限 UI 层，只通过 window.hmi 访问桌面能力。',
         'Main 进程负责窗口生命周期、IPC handler、日志、更新检查和后续工业基础设施。',
         'Preload 只暴露最小 typed API，不暴露 raw ipcRenderer 或 Node.js 模块。',
-        '项目说明书在 docs/project-manual.md 中详细解释开发目的、协议映射和关键工程问答。'
+        '项目说明书在 docs/project-manual.md 中详细解释开发目的、协议映射和关键工程问答。',
+        '掘金推广文章草稿在 docs/articles/juejin-industrial-hmi-foundation.md 中，用于外部项目展示和技术社区发布。'
       ]
     },
     {
       id: 'manual-pages',
       title: '基础页面',
-      paragraphs: ['左侧导航提供 Dashboard、Device、Alarm、Trend、Recipe、Tag Management 和 Settings 页面骨架。'],
+      paragraphs: [
+        '左侧导航提供 Dashboard、Device、Alarm、Trend、Recipe、Audit、User Management、Tag Management 和 Settings 页面。',
+        '普通演示路径是先在 Settings 中启动 Simulator，再到 Device 页面 Connect；启动 Simulator 只是准备本地测试端点，不等于连接设备。'
+      ],
       bullets: [
         'Dashboard 展示模拟混料设备的温度、液位、压力、转速、运行状态、模式和生产计数。',
-        'Device 可以连接独立启动的模拟 PLC，并通过 CommandService 写入目标温度/手动转速、执行启停和阀门控制。',
-        'Device Tag Monitor 展示默认 Tag 的 Value、Unit、Quality 和 Timestamp。',
-        'Alarm、Trend、Recipe 和 Audit 页面用于展示报警确认/恢复、历史趋势、配方下载和审计记录。',
-        '权限模型区分 Operator、Engineer 和 Admin；Renderer 可以调整界面，但关键写操作仍由 Main Process 权威校验。',
+        'Device 用于执行 Connect / Disconnect、刷新状态和手工读取，并通过 CommandService 写入目标温度/手动转速、执行启停和阀门控制。',
+        'Device 页面连接状态显示 Disconnected、Connecting、Connected、Reconnecting 或 Fault；Tag Monitor 展示默认 Tag 的 Value、Unit、Quality 和 Timestamp。',
+        'Alarm 用于查看实时报警和历史报警；Acknowledge 只表示已确认，报警触发条件消失后才是 Recovered。',
+        'Trend 用于查看实时趋势和历史趋势；实时趋势使用有上限的 ring buffer，历史趋势来自 SQLite。',
+        'Recipe 用于创建、保存、复制、删除和下载配方；配方下载需要校验、写入和 read-back / verify。',
+        'Audit 用于查询 Start、Stop、Setpoint Change、Valve Control、Recipe Download、Alarm Acknowledge 和用户配置变更等关键记录。',
+        'User Management 用于管理本地用户、角色和启用状态。',
+        'Tag Management 用于展示当前 Tag 管理入口和后续配置管理边界。',
+        '权限模型区分 Operator、Engineer 和 Admin；Renderer 可以调整界面，但关键写操作仍由 Main Process 权威校验，并通过 Audit Log 记录结果。',
         'Settings 可以选择 Modbus TCP 或 OPC UA 通信配置，并在 Simulator 区域启动/停止本地 Modbus TCP 或 OPC UA Simulator。'
       ]
     },
@@ -108,19 +117,28 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
         'Renderer is a restricted UI layer and accesses desktop capabilities only through window.hmi.',
         'Main owns the window lifecycle, IPC handlers, logging, update checks, and future industrial infrastructure.',
         'Preload exposes a minimal typed API and does not expose raw ipcRenderer or Node.js modules.',
-        'The detailed project manual lives in docs/project-manual.md and explains the project purpose, protocol mapping, and engineering Q&A.'
+        'The detailed project manual lives in docs/project-manual.md and explains the project purpose, protocol mapping, and engineering Q&A.',
+        'The Juejin promotion draft lives in docs/articles/juejin-industrial-hmi-foundation.md for external showcase and community publishing.'
       ]
     },
     {
       id: 'manual-pages',
       title: 'Pages',
-      paragraphs: ['The sidebar provides Dashboard, Device, Alarm, Trend, Recipe, Tag Management, and Settings frames.'],
+      paragraphs: [
+        'The sidebar provides Dashboard, Device, Alarm, Trend, Recipe, Audit, User Management, Tag Management, and Settings pages.',
+        'The normal demo flow is to start a Simulator from Settings first, then use Connect on the Device page; starting a Simulator only prepares a local test endpoint.'
+      ],
       bullets: [
         'Dashboard shows temperature, level, pressure, RPM, running state, mode, and production count for the simulated mixer.',
-        'Device can connect to the independently started simulated PLC, write target temperature/manual RPM, and execute start/stop and valve controls through CommandService.',
-        'Device Tag Monitor shows Value, Unit, Quality, and Timestamp for the default Tags.',
-        'Alarm, Trend, Recipe, and Audit pages show alarm acknowledgement/recovery, historical trends, Recipe download, and audit records.',
-        'Permissions distinguish Operator, Engineer, and Admin; Renderer can adjust UI, but Main Process still authorizes critical writes.',
+        'Device handles Connect / Disconnect, status refresh, manual reads, target temperature/manual RPM writes, start/stop, and valve controls through CommandService.',
+        'Device connection state uses Disconnected, Connecting, Connected, Reconnecting, or Fault; Device Tag Monitor shows Value, Unit, Quality, and Timestamp for the default Tags.',
+        'Alarm shows realtime and historical alarms; acknowledgement means operator confirmation, not process recovery.',
+        'Trend shows realtime and historical trends; realtime trends use bounded ring buffers, while historical trends come from SQLite.',
+        'Recipe creates, saves, copies, deletes, and downloads recipes; download validates, writes, and performs read-back / verify.',
+        'Audit queries critical records such as Start, Stop, Setpoint Change, Valve Control, Recipe Download, Alarm Acknowledge, and user configuration changes.',
+        'User Management manages local users, roles, and enabled state.',
+        'Tag Management shows the current Tag management entry and the boundary for later configuration management.',
+        'Permissions distinguish Operator, Engineer, and Admin; Renderer can adjust UI, but Main Process still authorizes critical writes and records results through Audit Log.',
         'Settings can select Modbus TCP or OPC UA communication configuration and start/stop the local Modbus TCP or OPC UA Simulator.'
       ]
     },

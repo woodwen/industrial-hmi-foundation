@@ -6,6 +6,8 @@ Industrial HMI Foundation 是一个基于 Electron 的工业自动化上位机 /
 
 应用图标使用工业 HMI 面板、趋势图和设备控制元素作为品牌视觉，项目内打包资产位于 `build/icon.png`、`build/icon.icns` 和 `build/icon.ico`。
 
+掘金推广文章草稿见 [docs/articles/juejin-industrial-hmi-foundation.md](docs/articles/juejin-industrial-hmi-foundation.md)。该文章面向外部项目展示和技术社区发布，集中介绍 Electron + React 工业 HMI 学习项目的架构、截图、Demo 路线和工程边界。
+
 详细项目说明书见 [docs/project-manual.md](docs/project-manual.md)，也可以在应用内通过 `帮助 -> 项目说明书` 离线查看。该文档逐条回答 PLC/设备通信、Modbus TCP/RTU、OPC UA、周期采集、1000 点位、断线重连、UI 隔离、实时刷新、报警、历史趋势、PLC 控制、防重复命令、通信线程隔离、异常超时重连、配方、Tag 管理、权限和操作日志等问题。
 
 ## 1. 项目介绍
@@ -13,6 +15,32 @@ Industrial HMI Foundation 是一个基于 Electron 的工业自动化上位机 /
 项目覆盖桌面 HMI 的典型工程边界：Electron Main / Preload / Renderer 分层、React + MobX MVVM、受控 IPC、工业通信抽象、Tag 实时数据、设备状态机、报警、趋势、Historian、Recipe、权限和审计。
 
 默认设备是 `simulated-mixer-plc`，可通过 Modbus TCP Simulator 或 OPC UA Simulator 连接。Modbus TCP 是默认协议，OPC UA 是可选协议。Modbus RTU 是真实工业串口协议形态，但当前项目未实现 RTU runtime。
+
+## Showcase
+
+项目当前可演示的亮点：
+
+- Electron Main / Preload / Renderer 边界清晰，Renderer 不直接访问 Node.js、TCP、Modbus、OPC UA 或 SQLite。
+- Modbus TCP 采用 polling、scan group 和连续地址批量读取；OPC UA 默认走 subscription / monitored item notification。
+- 实时数据统一进入 Tag 模型，`TagValue` 同时包含 value、quality 和 timestamp。
+- Device State、CommandService、Alarm、Historian、Trend、Recipe、Permission 和 Audit 都作为独立工程模型展示。
+- Simulator-first 演示路径完整：Settings 启动 Simulator，Device Connect，Dashboard/Trend/Alarm/Recipe/Audit 展示业务闭环。
+
+界面截图位于 [docs/assets/juejin](docs/assets/juejin)，对应页面如下：
+
+当前截图索引覆盖 Dashboard、Device、Alarm、Trend、Recipe、Audit、User Management、Tag Management 和 Settings 页面。
+
+| 页面 | 截图 | 展示重点 |
+| --- | --- | --- |
+| Dashboard | [dashboard-logged-in.png](docs/assets/juejin/dashboard-logged-in.png) / [dashboard-logged-out.png](docs/assets/juejin/dashboard-logged-out.png) | 过程值、运行状态、登录状态 |
+| Device | [device-disconnected.png](docs/assets/juejin/device-disconnected.png) / [device-connected.png](docs/assets/juejin/device-connected.png) | 设备连接状态、Tag Monitor、Quality |
+| Alarm | [alarm-history.png](docs/assets/juejin/alarm-history.png) | 实时报警、历史报警、确认记录 |
+| Trend | [trend-realtime.png](docs/assets/juejin/trend-realtime.png) | 实时趋势、历史趋势入口 |
+| Recipe | [recipe-management.png](docs/assets/juejin/recipe-management.png) | 配方编辑、下载结果 |
+| Audit | [audit-log.png](docs/assets/juejin/audit-log.png) | 关键控制操作审计 |
+| User Management | [user-management.png](docs/assets/juejin/user-management.png) | 本地用户、角色、启用状态 |
+| Tag Management | [tag-management.png](docs/assets/juejin/tag-management.png) | Tag 管理入口和后续配置边界 |
+| Settings | [settings-simulator.png](docs/assets/juejin/settings-simulator.png) | 协议配置、日志开关、Simulator 启停 |
 
 ## 2. Architecture
 
@@ -253,7 +281,7 @@ yarn build
 OpenSpec 检查：
 
 ```bash
-openspec validate add-app-simulator-and-project-manual --strict
+openspec validate <change-id> --strict
 openspec validate --all --strict
 git diff --check
 ```
@@ -262,6 +290,7 @@ git diff --check
 
 ## 16. 文档入口
 
+- [掘金推广文章草稿](docs/articles/juejin-industrial-hmi-foundation.md)：面向技术社区发布和外部项目展示，配合截图说明项目架构、Demo 路线和工程边界。
 - [项目说明书](docs/project-manual.md)：详细解释开发目的、解决的问题、协议映射和关键工程问答；应用内 `帮助 -> 项目说明书` 可离线查看同源内容。
 - 应用内 `帮助 -> 使用说明书`：离线操作说明。
 - 应用内 `帮助 -> 版本更新说明`：从内置 `CHANGELOG.md` 展示版本变化。

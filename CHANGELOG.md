@@ -4,6 +4,16 @@
 
 ## Unreleased / 0.1.2
 
+### Added
+
+- 新增 `docs/articles/juejin-industrial-hmi-foundation.md` 掘金推广文章草稿，用于对外展示 Electron + React 工业 HMI 学习项目的架构、截图、Demo 路线和工程边界。
+- 新增 `docs/assets/juejin/` 文章配图资产，使用仓库内稳定 ASCII 文件名保存 Dashboard、Device、Alarm、Trend、Recipe、Audit、User Management、Tag Management 和 Settings 截图。
+
+### Changed
+
+- 更新 README，增加掘金文章入口、项目亮点、截图索引和 Simulator-first 演示路径摘要。
+- 更新应用内使用说明书，补齐当前主要页面、Tag Quality、报警确认、历史趋势、配方下载、权限和审计的操作说明。
+
 ## v0.1.1 - 2026-08-19
 
 ### Added
