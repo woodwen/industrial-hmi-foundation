@@ -41,6 +41,7 @@ import { DeviceManager, DeviceOperationGate } from './device'
 import { HistorianDatabase, HistorianService, TagHistoryRepository, TrendQueryService, TrendService } from './historian'
 import { AlarmIpcPublisher } from './ipc/alarm-publisher'
 import { DeviceStateIpcPublisher } from './ipc/device-state-publisher'
+import { SimulatorIpcPublisher } from './ipc/simulator-publisher'
 import { TagIpcPublisher } from './ipc/tag-publisher'
 import { TrendIpcPublisher } from './ipc/trend-publisher'
 import type { Logger } from './logging/logger'
@@ -49,7 +50,13 @@ import { createProtocolAdapter } from './protocol/factory'
 import type { ProtocolConnectionConfig } from './protocol/types'
 import { RecipeDownloadService, RecipeRepository, RecipeService } from './recipe'
 import { PermissionService, UserRepository, UserService } from './security'
+import { SimulatorManager } from './simulator'
 import { PollingScheduler, TagAcquisitionCoordinator, TagCache, TagService } from './tag'
+import type {
+  SimulatorLifecycleRequest,
+  SimulatorRuntimeStatus,
+  SimulatorStatusSnapshot
+} from '../shared/simulator'
 
 export interface MainRuntimeOptions {
   databasePath?: string
@@ -67,6 +74,7 @@ export interface MainRuntime {
   historianService: HistorianService
   trendService: TrendService
   trendQueryService: TrendQueryService
+  simulatorManager: SimulatorManager
   auditService: AuditService
   userService: UserService
   permissionService: PermissionService
@@ -77,6 +85,7 @@ export interface MainRuntime {
   deviceStateIpcPublisher: DeviceStateIpcPublisher
   alarmIpcPublisher: AlarmIpcPublisher
   trendIpcPublisher: TrendIpcPublisher
+  simulatorIpcPublisher: SimulatorIpcPublisher
   getTagSnapshot(): TagSnapshot
   getCurrentUser(): CurrentUserSnapshot
   createFirstAdmin(request: CreateFirstAdminRequest): UserDto
@@ -100,7 +109,10 @@ export interface MainRuntime {
   queryAlarmHistory(query: AlarmHistoryQuery): AlarmHistoryResult
   getRealtimeTrendSnapshot(request: RealtimeTrendRequest): RealtimeTrendSnapshot
   queryHistoricalTrend(query: HistoricalTrendQuery): HistoricalTrendResult
-  dispose(): void
+  getStatus(): SimulatorStatusSnapshot
+  startSimulator(kind: SimulatorLifecycleRequest['kind']): Promise<SimulatorRuntimeStatus>
+  stopSimulator(kind: SimulatorLifecycleRequest['kind']): Promise<SimulatorRuntimeStatus>
+  dispose(): Promise<void>
 }
 
 export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = {}): MainRuntime {
@@ -181,6 +193,7 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
   const historianService = new HistorianService(tagCache, tagHistoryRepository, logger)
   const trendService = new TrendService(tagCache)
   const trendQueryService = new TrendQueryService(tagHistoryRepository)
+  const simulatorManager = new SimulatorManager({ logger })
   const alarmEngine = new AlarmEngine(tagCache, deviceManager, alarmHistoryRepository, logger)
   const recipeService = new RecipeService(recipeRepository, userService, permissionService, auditService, undefined, logger)
   const recipeDownloadService = new RecipeDownloadService(
@@ -197,6 +210,7 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
   const deviceStateIpcPublisher = new DeviceStateIpcPublisher(deviceManager, logger)
   const alarmIpcPublisher = new AlarmIpcPublisher(alarmEngine, logger)
   const trendIpcPublisher = new TrendIpcPublisher(trendService, logger)
+  const simulatorIpcPublisher = new SimulatorIpcPublisher(simulatorManager, logger)
 
   return {
     deviceManager,
@@ -209,6 +223,7 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
     historianService,
     trendService,
     trendQueryService,
+    simulatorManager,
     auditService,
     userService,
     permissionService,
@@ -219,6 +234,7 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
     deviceStateIpcPublisher,
     alarmIpcPublisher,
     trendIpcPublisher,
+    simulatorIpcPublisher,
     getTagSnapshot: () => tagCache.getSnapshot(SIMULATED_MIXER_DEVICE_ID),
     getCurrentUser: () => userService.getCurrentSnapshot(),
     createFirstAdmin: (request) => userService.createFirstAdmin(request),
@@ -254,18 +270,23 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
     queryAlarmHistory: (query) => alarmHistoryRepository.queryHistory(query),
     getRealtimeTrendSnapshot: (request) => trendService.getSnapshot(request.tagIds),
     queryHistoricalTrend: (query) => trendQueryService.queryHistorical(query),
-    dispose: () => {
-      tagAcquisitionCoordinator.dispose()
+    getStatus: () => simulatorManager.getStatus(),
+    startSimulator: (kind) => simulatorManager.startSimulator(kind),
+    stopSimulator: (kind) => simulatorManager.stopSimulator(kind),
+    dispose: async () => {
+      await tagAcquisitionCoordinator.stop()
       tagIpcPublisher.dispose()
       deviceStateIpcPublisher.dispose()
       alarmIpcPublisher.dispose()
       trendIpcPublisher.dispose()
+      simulatorIpcPublisher.dispose()
       alarmEngine.dispose()
       trendService.dispose()
       historianService.flush()
       historianService.dispose()
       commandService.dispose()
       deviceManager.dispose()
+      await simulatorManager.dispose()
       tagCache.dispose()
       historianDatabase.close()
       operationGate.dispose()

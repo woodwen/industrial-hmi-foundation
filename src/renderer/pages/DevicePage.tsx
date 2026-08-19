@@ -4,7 +4,8 @@ import { PageFrame } from '../components/PageFrame'
 import { useViewModels } from '../viewmodels/ViewModelContext'
 
 export const DevicePage = observer(() => {
-  const { app, device } = useViewModels()
+  const { app, device, simulators } = useViewModels()
+  const simulatorSummary = simulators.getRow(device.status.protocol)
 
   return (
     <PageFrame
@@ -102,6 +103,36 @@ export const DevicePage = observer(() => {
         {device.statusErrorMessage ? (
           <p className="inline-error" role="alert">{device.statusErrorMessage}</p>
         ) : null}
+      </section>
+
+      <section className="device-panel" aria-labelledby="device-simulator-summary-title">
+        <div className="device-panel-heading">
+          <div>
+            <h3 id="device-simulator-summary-title">{app.t('simulator.deviceSummary.title')}</h3>
+            <p>{app.t('simulator.deviceSummary.body')}</p>
+          </div>
+          <span className={`status-pill simulator-status-${simulatorSummary.status.toLowerCase()}`}>
+            {app.t(simulatorSummary.statusKey)}
+          </span>
+        </div>
+        <dl className="device-status-grid">
+          <div>
+            <dt>{app.t('simulator.protocol')}</dt>
+            <dd>{simulatorSummary.protocolLabel}</dd>
+          </div>
+          <div>
+            <dt>{app.t('simulator.endpoint')}</dt>
+            <dd>{simulatorSummary.endpointLabel}</dd>
+          </div>
+          <div>
+            <dt>{app.t('simulator.managed')}</dt>
+            <dd>{app.t(simulatorSummary.managedLabelKey)}</dd>
+          </div>
+          <div>
+            <dt>{app.t('simulator.actions')}</dt>
+            <dd>{app.t('simulator.deviceSummary.connectHint')}</dd>
+          </div>
+        </dl>
       </section>
 
       <section className="device-panel" aria-labelledby="tag-monitor-title">

@@ -2,7 +2,19 @@
 
 所有用户可见变更都记录在此文件中。当前版本区块同时作为应用内版本更新说明和 GitHub Release notes 的来源。
 
-## Unreleased / 0.1.1
+## Unreleased / 0.1.2
+
+### Added
+
+- 新增 `docs/articles/juejin-industrial-hmi-foundation.md` 掘金推广文章草稿，用于对外展示 Electron + React 工业 HMI 学习项目的架构、截图、Demo 路线和工程边界。
+- 新增 `docs/assets/juejin/` 文章配图资产，使用仓库内稳定 ASCII 文件名保存 Dashboard、Device、Alarm、Trend、Recipe、Audit、User Management、Tag Management 和 Settings 截图。
+
+### Changed
+
+- 更新 README，增加掘金文章入口、项目亮点、截图索引和 Simulator-first 演示路径摘要。
+- 更新应用内使用说明书，补齐当前主要页面、Tag Quality、报警确认、历史趋势、配方下载、权限和审计的操作说明。
+
+## v0.1.1 - 2026-08-19
 
 ### Added
 
@@ -14,17 +26,23 @@
 - 新增工业报警、SQLite 历史数据、实时趋势和历史趋势能力，支持报警确认、恢复和重启后历史查询。
 - 新增本地用户权限、工业配方管理、Recipe 下载结果明细和关键操作 Audit Log 持久化能力。
 - 新增 OPC UA 协议适配器、OPC UA Simulator、协议切换配置、subscription 采集链路、性能 profile 和长期运行 smoke profile。
+- 新增跨平台应用图标资产，使用工业 HMI 面板、趋势图和设备控制元素作为桌面应用品牌视觉。
+- 新增 `docs/project-manual.md` 项目说明书，详细说明开发目的、解决的问题、模拟协议与真实协议关系，并逐条回答 PLC 通信、采集、报警、趋势、配方、权限和审计问题。
+- 新增应用内 Simulator 控制入口，可在 Settings 中启动/停止 Modbus TCP 与 OPC UA Simulator，并在 Help 中离线查看项目说明书。
 
 ### Changed
 
 - 将应用默认语言明确为中文，并为英文演示保留可切换文案和中文回退。
 - 明确 release version 以 `package.json` 的稳定 SemVer 为唯一来源，并要求 changelog 顶部版本与 package 版本保持一致。
+- 更新 README 和应用内使用说明书，使它们作为项目入口和离线操作说明，并链接到详细项目说明书。
+- 将 Simulator 普通演示路径调整为应用内启动，`yarn simulator:start` 和 `yarn simulator:opcua:start` 继续作为维护者、自动化测试和独立协议验证路径。
 
 ### Build
 
 - 补强 GitHub Release workflow：release title 使用 `v<version>`，发布后在既有 `dev` 分支准备下一开发版本。
 - 统一项目 Yarn 工具链，并修复 `better-sqlite3` 在 Electron dev/test 入口之间的 native ABI 重编译流程。
 - 固定 `node-opcua` 传递依赖 `hexy` 的 CommonJS 兼容版本，避免 Electron 主进程加载 OPC UA runtime 时触发 ESM require 错误。
+- Electron Builder 显式引用 `build/icon.png`、`build/icon.icns` 和 `build/icon.ico`，避免桌面安装包使用默认 Electron 图标。
 
 ### Notes
 

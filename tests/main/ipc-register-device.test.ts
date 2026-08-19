@@ -5,12 +5,21 @@ import type {
   AlarmSubscriptionApi,
   CommandManagerApi,
   DeviceManagerApi,
+  SimulatorManagerApi,
+  SimulatorSubscriptionApi,
   TrendManagerApi,
   TrendSubscriptionApi,
   UpdateManagerApi
 } from '../../src/main/ipc/register'
 import type { Logger } from '../../src/main/logging/logger'
-import type { DeviceCommandResult, DeviceReadResponse, DeviceStatus, HmiResult } from '../../src/shared/hmi-api'
+import type {
+  DeviceCommandResult,
+  DeviceReadResponse,
+  DeviceStatus,
+  HmiResult,
+  SimulatorRuntimeStatus,
+  SimulatorStatusSnapshot
+} from '../../src/shared/hmi-api'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 import { DEFAULT_TAG_DEFINITIONS, type TagSnapshot } from '../../src/shared/tag'
 import { createDeviceStatus } from '../support/hmi-api-client-stub'
@@ -241,6 +250,118 @@ describe('Device IPC registration', () => {
     expect(commandManager.executeCommand).toHaveBeenCalledWith({
       commandId: 'start'
     })
+  })
+
+  it('routes simulator lifecycle through typed SimulatorManager handlers', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const simulatorManager = createSimulatorManager()
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      {
+        getTagSnapshot: () => createTagSnapshot()
+      },
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createCommandManager(),
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createAlarmManager(),
+      createAlarmSubscription(),
+      createTrendManager(),
+      createTrendSubscription(),
+      undefined,
+      undefined,
+      undefined,
+      simulatorManager
+    )
+
+    const startResult = await getHandler(IPC_CHANNELS.simulators.start)({}, {
+      kind: 'modbusTcp'
+    }) as HmiResult<SimulatorRuntimeStatus>
+    const stopResult = await getHandler(IPC_CHANNELS.simulators.stop)({}, {
+      kind: 'modbusTcp'
+    }) as HmiResult<SimulatorRuntimeStatus>
+    const statusResult = await getHandler(IPC_CHANNELS.simulators.getStatus)({}, undefined) as HmiResult<SimulatorStatusSnapshot>
+    const invalidResult = await getHandler(IPC_CHANNELS.simulators.start)({}, {
+      kind: 'modbusTcp',
+      command: 'yarn simulator:start'
+    }) as HmiResult<unknown>
+
+    expect(startResult).toMatchObject({
+      ok: true,
+      data: {
+        kind: 'modbusTcp',
+        status: 'Running'
+      }
+    })
+    expect(stopResult).toMatchObject({
+      ok: true,
+      data: {
+        status: 'Stopped'
+      }
+    })
+    expect(statusResult).toMatchObject({
+      ok: true,
+      data: {
+        simulators: expect.any(Array)
+      }
+    })
+    expect(invalidResult).toMatchObject({
+      ok: false,
+      error: {
+        code: 'IPC_INVALID_PAYLOAD'
+      }
+    })
+    expect(simulatorManager.startSimulator).toHaveBeenCalledWith('modbusTcp')
+    expect(simulatorManager.stopSimulator).toHaveBeenCalledWith('modbusTcp')
+  })
+
+  it('registers and removes simulator status subscribers by webContents id', async () => {
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+    const simulatorSubscription = createSimulatorSubscription()
+    const sender = {
+      id: 17
+    }
+
+    registerIpcHandlers(
+      createLogger(),
+      createUpdateManager(),
+      createDeviceManager(),
+      {
+        getTagSnapshot: () => createTagSnapshot()
+      },
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createCommandManager(),
+      {
+        addSubscriber: () => undefined,
+        removeSubscriber: () => undefined
+      },
+      createAlarmManager(),
+      createAlarmSubscription(),
+      createTrendManager(),
+      createTrendSubscription(),
+      undefined,
+      undefined,
+      undefined,
+      createSimulatorManager(),
+      simulatorSubscription
+    )
+
+    await getHandler(IPC_CHANNELS.simulators.subscribeStatus)({ sender }, undefined)
+    await getHandler(IPC_CHANNELS.simulators.unsubscribeStatus)({ sender }, undefined)
+
+    expect(simulatorSubscription.addSubscriber).toHaveBeenCalledWith(sender)
+    expect(simulatorSubscription.removeSubscriber).toHaveBeenCalledWith(17)
   })
 
   it('registers and removes device state subscribers by webContents id', async () => {
@@ -551,6 +672,27 @@ function createTrendSubscription(): TrendSubscriptionApi {
   }
 }
 
+function createSimulatorManager(): SimulatorManagerApi {
+  const stopped = createSimulatorStatus('Stopped')
+  const running = createSimulatorStatus('Running')
+
+  return {
+    getStatus: vi.fn<SimulatorManagerApi['getStatus']>(() => ({
+      simulators: [stopped],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })),
+    startSimulator: vi.fn<SimulatorManagerApi['startSimulator']>().mockResolvedValue(running),
+    stopSimulator: vi.fn<SimulatorManagerApi['stopSimulator']>().mockResolvedValue(stopped)
+  }
+}
+
+function createSimulatorSubscription(): SimulatorSubscriptionApi {
+  return {
+    addSubscriber: vi.fn(),
+    removeSubscriber: vi.fn()
+  }
+}
+
 function createUpdateManager(): UpdateManagerApi {
   return {
     checkForUpdates: vi.fn(async () => undefined),
@@ -578,5 +720,21 @@ function createTagSnapshot(): TagSnapshot {
       timestamp: '2026-08-18T00:00:00.000Z'
     })),
     emittedAt: '2026-08-18T00:00:00.000Z'
+  }
+}
+
+function createSimulatorStatus(status: SimulatorRuntimeStatus['status']): SimulatorRuntimeStatus {
+  return {
+    kind: 'modbusTcp',
+    status,
+    endpoint: {
+      label: '127.0.0.1:1502/unit-1',
+      host: '127.0.0.1',
+      port: 1502,
+      unitId: 1
+    },
+    managed: status === 'Running',
+    pid: status === 'Running' ? 4201 : undefined,
+    updatedAt: '2026-08-18T00:00:00.000Z'
   }
 }

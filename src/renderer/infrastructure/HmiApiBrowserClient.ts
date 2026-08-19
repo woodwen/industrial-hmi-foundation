@@ -38,6 +38,10 @@ import type {
   RealtimeTrendRequest,
   RealtimeTrendSnapshot,
   SetUserEnabledRequest,
+  SimulatorLifecycleListener,
+  SimulatorLifecycleRequest,
+  SimulatorRuntimeStatus,
+  SimulatorStatusSnapshot,
   TagSnapshot,
   TagValuesListener,
   UpdateRecipeRequest,
@@ -219,5 +223,21 @@ export class HmiApiBrowserClient implements HmiApiClient {
 
   queryHistoricalTrend(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>> {
     return window.hmi.trends.queryHistorical(query)
+  }
+
+  getSimulatorStatus(): Promise<HmiResult<SimulatorStatusSnapshot>> {
+    return window.hmi.simulators.getStatus()
+  }
+
+  startSimulator(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>> {
+    return window.hmi.simulators.start(request)
+  }
+
+  stopSimulator(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>> {
+    return window.hmi.simulators.stop(request)
+  }
+
+  subscribeSimulatorStatus(listener: SimulatorLifecycleListener): Unsubscribe {
+    return window.hmi.simulators.subscribeStatus(listener)
   }
 }

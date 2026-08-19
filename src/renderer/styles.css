@@ -619,6 +619,25 @@ button {
   background: #fff0ef;
 }
 
+.simulator-status-running {
+  border-color: #7fc6ac;
+  color: #0f5f4f;
+  background: #dff5ed;
+}
+
+.simulator-status-starting,
+.simulator-status-stopping {
+  border-color: #e3c36d;
+  color: #6c4f09;
+  background: #fff4cd;
+}
+
+.simulator-status-fault {
+  border-color: #eeaaa8;
+  color: #8b2521;
+  background: #fff0ef;
+}
+
 .device-status-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1087,6 +1106,59 @@ button {
   border-bottom: 0;
 }
 
+.simulator-list {
+  display: grid;
+  overflow: auto;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+}
+
+.simulator-row {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 0.55fr)
+    minmax(260px, 1.35fr)
+    minmax(140px, 0.65fr)
+    minmax(104px, 0.5fr)
+    minmax(180px, 0.85fr);
+  min-width: 850px;
+  border-bottom: 1px solid #d8e0eb;
+}
+
+.simulator-row:last-child {
+  border-bottom: 0;
+}
+
+.simulator-header {
+  color: #41576d;
+  background: #e9eff6;
+  font-weight: 700;
+}
+
+.simulator-row span {
+  min-width: 0;
+  min-height: 44px;
+  border-right: 1px solid #d8e0eb;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.simulator-row span:last-child {
+  border-right: 0;
+}
+
+.simulator-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.simulator-error {
+  grid-column: 1 / -1;
+  color: #8b2521;
+  background: #fff0ef;
+}
+
 .dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -1226,12 +1298,73 @@ button {
 
 .manual-section p,
 .manual-section li,
+.markdown-document p,
+.markdown-document li,
 .version-group li,
 .dialog-note,
 .empty-state,
 .update-dialog p {
   color: #52697e;
   line-height: 1.6;
+}
+
+.markdown-document {
+  display: grid;
+  gap: 12px;
+}
+
+.markdown-document h2,
+.markdown-document h3,
+.markdown-document h4 {
+  margin: 10px 0 0;
+}
+
+.markdown-document p,
+.markdown-document ul {
+  margin: 0;
+}
+
+.markdown-document pre {
+  overflow: auto;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+  padding: 12px;
+  background: #f4f7fb;
+}
+
+.markdown-table-wrap {
+  overflow: auto;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+}
+
+.markdown-document table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.markdown-document th,
+.markdown-document td {
+  border-bottom: 1px solid #d8e0eb;
+  border-right: 1px solid #d8e0eb;
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-document th:last-child,
+.markdown-document td:last-child {
+  border-right: 0;
+}
+
+.markdown-document tr:last-child td {
+  border-bottom: 0;
+}
+
+.markdown-document th {
+  color: #41576d;
+  background: #e9eff6;
 }
 
 .version-entry header {
@@ -1337,6 +1470,11 @@ button {
 
   .command-button-grid {
     grid-template-columns: 1fr;
+  }
+
+  .simulator-row {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
   }
 
   .recipe-form {

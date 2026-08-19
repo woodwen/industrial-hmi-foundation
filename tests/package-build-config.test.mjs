@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
@@ -11,6 +11,8 @@ describe('package build config', () => {
     expect(packageJson.build.appId).toBe('com.industrialhmi.foundation')
     expect(packageJson.build.productName).toBe('Industrial HMI Foundation')
     expect(packageJson.build.artifactName).toBe('Industrial-HMI-Foundation-${version}-${arch}.${ext}')
+    expect(packageJson.build.icon).toBe('build/icon.png')
+    expect(packageJson.build.directories.buildResources).toBe('build')
     expect(packageJson.build.directories.output).toBe('release')
     expect(packageJson.build.linux.executableName).toBe('industrial-hmi-foundation')
     expect(packageJson.build.linux.executableName).toMatch(appImageSafePathPattern)
@@ -30,6 +32,9 @@ describe('package build config', () => {
   })
 
   it('builds and uploads artifacts needed by update checks', () => {
+    expect(packageJson.build.mac.icon).toBe('build/icon.icns')
+    expect(packageJson.build.win.icon).toBe('build/icon.ico')
+    expect(packageJson.build.linux.icon).toBe('build/icon.png')
     expect(packageJson.build.mac.target).toEqual(expect.arrayContaining(['dmg', 'zip']))
     expect(releaseWorkflow).toContain('branches:\n      - master')
     expect(releaseWorkflow).toContain('yarn install --frozen-lockfile')
@@ -45,12 +50,44 @@ describe('package build config', () => {
     expect(releaseWorkflow).not.toContain('npm publish')
   })
 
+  it('ships project icon assets for every desktop platform', () => {
+    const pngPath = new URL('../build/icon.png', import.meta.url)
+    const icnsPath = new URL('../build/icon.icns', import.meta.url)
+    const icoPath = new URL('../build/icon.ico', import.meta.url)
+
+    expect(existsSync(pngPath)).toBe(true)
+    expect(existsSync(icnsPath)).toBe(true)
+    expect(existsSync(icoPath)).toBe(true)
+    expect(readFileSync(pngPath).subarray(1, 4).toString('ascii')).toBe('PNG')
+    expect(readFileSync(icnsPath).subarray(0, 4).toString('ascii')).toBe('icns')
+    expect(readFileSync(icoPath).readUInt16LE(2)).toBe(1)
+  })
+
   it('unpacks the SQLite native module from asar packages', () => {
     expect(packageJson.dependencies).toHaveProperty('better-sqlite3')
     expect(packageJson.build.asar).toBe(true)
     expect(packageJson.build.asarUnpack).toEqual(expect.arrayContaining([
       'node_modules/better-sqlite3/**'
     ]))
+  })
+
+  it('builds simulator runtime before app dev/build and unpacks it for managed Simulator control', () => {
+    expect(packageJson.scripts.predev).toContain('yarn simulator:build')
+    expect(packageJson.scripts.build).toContain('yarn simulator:build')
+    expect(packageJson.scripts['simulator:start']).toContain('out/simulator/simulator/index.js')
+    expect(packageJson.scripts['simulator:opcua:start']).toContain('out/simulator/simulator/opcua-index.js')
+    expect(packageJson.build.asarUnpack).toEqual(expect.arrayContaining([
+      'out/simulator/**'
+    ]))
+  })
+
+  it('embeds the project manual source into the renderer bundle', () => {
+    const projectManualModule = readFileSync(
+      new URL('../src/renderer/help/project-manual.ts', import.meta.url),
+      'utf8'
+    )
+
+    expect(projectManualModule).toContain("../../../docs/project-manual.md?raw")
   })
 
   it('prepares the next dev version after publishing without creating release loops', () => {

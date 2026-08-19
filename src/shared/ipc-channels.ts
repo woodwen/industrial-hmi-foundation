@@ -73,5 +73,13 @@ export const IPC_CHANNELS = {
     unsubscribeRealtime: 'hmi:trends:unsubscribe-realtime',
     realtimeChanged: 'hmi:trends:realtime-changed',
     queryHistorical: 'hmi:trends:query-historical'
+  },
+  simulators: {
+    getStatus: 'hmi:simulators:get-status',
+    start: 'hmi:simulators:start',
+    stop: 'hmi:simulators:stop',
+    subscribeStatus: 'hmi:simulators:subscribe-status',
+    unsubscribeStatus: 'hmi:simulators:unsubscribe-status',
+    statusChanged: 'hmi:simulators:status-changed'
   }
 } as const

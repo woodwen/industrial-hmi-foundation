@@ -14,12 +14,13 @@ import { UserManagementPage } from './pages/UserManagementPage'
 import { useViewModels } from './viewmodels/ViewModelContext'
 
 export const App = observer(() => {
-  const { alarm, app, auth, device, tags, trend } = useViewModels()
+  const { alarm, app, auth, device, simulators, tags, trend } = useViewModels()
 
   useEffect(() => {
     void auth.initialize()
     void tags.initialize()
     void device.initialize()
+    void simulators.initialize()
     void alarm.initialize()
     void trend.initialize()
     return () => {
@@ -27,8 +28,9 @@ export const App = observer(() => {
       tags.dispose()
       trend.dispose()
       device.dispose()
+      simulators.dispose()
     }
-  }, [alarm, auth, device, tags, trend])
+  }, [alarm, auth, device, simulators, tags, trend])
 
   return (
     <AppLayout>

@@ -16,7 +16,8 @@ import {
   parseRecipeDownloadRequest,
   parseRecipeDraft,
   parseRecipeIdPayload,
-  parseRealtimeTrendRequest
+  parseRealtimeTrendRequest,
+  parseSimulatorLifecycleRequest
 } from '../../src/main/ipc/input-validation'
 
 describe('IPC input validation', () => {
@@ -328,6 +329,31 @@ describe('IPC input validation', () => {
         preset: 'custom',
         startTime: '2026-08-18T01:00:00.000Z',
         endTime: '2026-08-18T00:00:00.000Z'
+      }, 'ipc:test')
+    })
+  })
+
+  it('accepts fixed simulator lifecycle payloads and rejects arbitrary commands', () => {
+    expect(parseSimulatorLifecycleRequest({
+      kind: 'modbusTcp'
+    }, 'ipc:test')).toEqual({
+      kind: 'modbusTcp'
+    })
+    expect(parseSimulatorLifecycleRequest({
+      kind: 'opcUa'
+    }, 'ipc:test')).toEqual({
+      kind: 'opcUa'
+    })
+
+    expectInvalidPayload(() => {
+      parseSimulatorLifecycleRequest({
+        kind: 'modbusTcp',
+        command: 'rm -rf /'
+      }, 'ipc:test')
+    })
+    expectInvalidPayload(() => {
+      parseSimulatorLifecycleRequest({
+        kind: 'shell'
       }, 'ipc:test')
     })
   })

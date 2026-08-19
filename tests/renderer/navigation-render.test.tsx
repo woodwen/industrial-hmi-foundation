@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { App } from '../../src/renderer/App'
 import { createRootViewModel } from '../../src/renderer/viewmodels/RootViewModel'
 import { ViewModelProvider } from '../../src/renderer/viewmodels/ViewModelContext'
-import { createApiClientStub, createAuditRecord, createRecipe } from '../support/hmi-api-client-stub'
+import { createApiClientStub, createAuditRecord, createDeviceStatus, createRecipe } from '../support/hmi-api-client-stub'
 
 describe('Renderer navigation rendering', () => {
   it('renders dashboard frame by default', () => {
@@ -24,6 +24,71 @@ describe('Renderer navigation rendering', () => {
 
     expect(markup).toContain('设备')
     expect(markup).toContain('模拟 PLC 连接')
+    expect(markup).toContain('Simulator 状态')
+    expect(markup).toContain('启动后再 Connect')
+  })
+
+  it('renders app-managed Simulator controls on the Settings page', () => {
+    const rootViewModel = createRootViewModel(createApiClientStub())
+    rootViewModel.app.navigate('settings')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('Simulator')
+    expect(markup).toContain('127.0.0.1:1502/unit-1')
+    expect(markup).toContain('opc.tcp://127.0.0.1:4840/industrial-hmi-simulator')
+    expect(markup).toContain('Start')
+    expect(markup).toContain('Stop')
+  })
+
+  it('renders the Device simulator summary for the current device protocol', () => {
+    const rootViewModel = createRootViewModel(createApiClientStub())
+    rootViewModel.device.status = {
+      ...createDeviceStatus(),
+      protocol: 'opcUa',
+      endpoint: {
+        endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+      }
+    }
+    rootViewModel.simulators.applyStatusEvent({
+      simulators: [
+        {
+          kind: 'modbusTcp',
+          status: 'Running',
+          endpoint: {
+            label: '127.0.0.1:1502/unit-1'
+          },
+          managed: true,
+          updatedAt: '2026-08-19T00:00:00.000Z'
+        },
+        {
+          kind: 'opcUa',
+          status: 'Stopped',
+          endpoint: {
+            label: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+          },
+          managed: false,
+          updatedAt: '2026-08-19T00:00:00.000Z'
+        }
+      ],
+      changed: {
+        kind: 'modbusTcp',
+        status: 'Running',
+        endpoint: {
+          label: '127.0.0.1:1502/unit-1'
+        },
+        managed: true,
+        updatedAt: '2026-08-19T00:00:00.000Z'
+      },
+      emittedAt: '2026-08-19T00:00:00.000Z'
+    })
+    rootViewModel.app.navigate('device')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('OPC UA')
+    expect(markup).toContain('opc.tcp://127.0.0.1:4840/industrial-hmi-simulator')
+    expect(markup).toContain('Stopped')
   })
 
   it('renders real-time alarm rows on the Alarm page', () => {

@@ -9,6 +9,8 @@ import { configureUpdateManager } from './update-manager'
 const logger = createMainLogger()
 let mainWindow: BrowserWindow | null = null
 let mainRuntime: MainRuntime | null = null
+let runtimeDisposeInProgress = false
+let quitAfterRuntimeDispose = false
 
 function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -57,7 +59,9 @@ void app.whenReady().then(() => {
     mainRuntime.trendIpcPublisher,
     mainRuntime,
     mainRuntime,
-    mainRuntime
+    mainRuntime,
+    mainRuntime,
+    mainRuntime.simulatorIpcPublisher
   )
   logger.write({
     category: 'application',
@@ -82,9 +86,29 @@ void app.whenReady().then(() => {
   })
 })
 
-app.on('before-quit', () => {
-  mainRuntime?.dispose()
+app.on('before-quit', (event) => {
+  if (quitAfterRuntimeDispose) {
+    return
+  }
+
+  if (runtimeDisposeInProgress) {
+    event.preventDefault()
+    return
+  }
+
+  if (!mainRuntime) {
+    return
+  }
+
+  event.preventDefault()
+  const runtime = mainRuntime
   mainRuntime = null
+  runtimeDisposeInProgress = true
+  void runtime.dispose().finally(() => {
+    runtimeDisposeInProgress = false
+    quitAfterRuntimeDispose = true
+    app.quit()
+  })
 })
 
 app.on('window-all-closed', () => {

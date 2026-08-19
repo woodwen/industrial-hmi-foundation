@@ -1,6 +1,7 @@
 import { observer } from 'mobx-react-lite'
 
 import { UserManualDialog } from '../help/UserManualDialog'
+import { ProjectManualDialog } from '../help/ProjectManualDialog'
 import { VersionUpdatesDialog } from '../help/VersionUpdatesDialog'
 import { UpdateStatusView } from '../updates/UpdateStatusView'
 import { useViewModels } from '../viewmodels/ViewModelContext'
@@ -41,6 +42,9 @@ export const HelpPanel = observer(() => {
             <button type="button" role="menuitem" onClick={app.openUserManual}>
               {app.t('help.userManual')}
             </button>
+            <button type="button" role="menuitem" onClick={app.openProjectManual}>
+              {app.t('help.projectManual')}
+            </button>
             <button type="button" role="menuitem" onClick={app.openVersionUpdates}>
               {app.t('help.versionUpdates')}
             </button>
@@ -64,6 +68,13 @@ export const HelpPanel = observer(() => {
         note={app.t('help.versionNote')}
         emptyLabel={app.t('help.noVersionNotes')}
         closeLabel={app.t('common.close')}
+        onClose={app.closeHelpDialog}
+      />
+      <ProjectManualDialog
+        open={app.activeHelpDialog === 'project-manual'}
+        title={app.t('help.projectManual')}
+        closeLabel={app.t('common.close')}
+        emptyLabel={app.t('help.projectManualEmpty')}
         onClose={app.closeHelpDialog}
       />
       <UpdateStatusView viewModel={updates} t={app.t} />
