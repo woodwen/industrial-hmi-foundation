@@ -2,7 +2,9 @@
 
 所有用户可见变更都记录在此文件中。当前版本区块同时作为应用内版本更新说明和 GitHub Release notes 的来源。
 
-## Unreleased / 0.1.2
+## Unreleased / 0.1.3
+
+## v0.1.2 - 2026-08-19
 
 ### Added
 
