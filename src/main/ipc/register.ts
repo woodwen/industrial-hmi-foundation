@@ -71,9 +71,16 @@ import {
   parseRecipeIdPayload,
   parseRealtimeTrendRequest,
   parseSetUserEnabledRequest,
+  parseSimulatorLifecycleRequest,
   parseUpdateRecipeRequest,
   parseUpdateUserRoleRequest
 } from './input-validation'
+import { createDefaultSimulatorManager } from '../simulator'
+import type {
+  SimulatorLifecycleRequest,
+  SimulatorRuntimeStatus,
+  SimulatorStatusSnapshot
+} from '../../shared/simulator'
 
 type Handler<TResult> = (payload: unknown, event: IpcMainInvokeEvent) => Promise<TResult> | TResult
 
@@ -161,6 +168,17 @@ export interface DeviceStateSubscriptionApi {
   removeSubscriber(webContentsId: number): void
 }
 
+export interface SimulatorManagerApi {
+  getStatus(): SimulatorStatusSnapshot
+  startSimulator(kind: SimulatorLifecycleRequest['kind']): Promise<SimulatorRuntimeStatus>
+  stopSimulator(kind: SimulatorLifecycleRequest['kind']): Promise<SimulatorRuntimeStatus>
+}
+
+export interface SimulatorSubscriptionApi {
+  addSubscriber(webContents: IpcMainInvokeEvent['sender']): void
+  removeSubscriber(webContentsId: number): void
+}
+
 export function registerIpcHandlers(
   logger: Logger,
   updateManager: UpdateManagerApi = defaultUpdateManager,
@@ -175,7 +193,9 @@ export function registerIpcHandlers(
   trendSubscription: TrendSubscriptionApi = createNoopTrendSubscription(),
   authManager: AuthManagerApi = createDefaultAuthManager(),
   recipeManager: RecipeManagerApi = createDefaultRecipeManager(),
-  auditManager: AuditManagerApi = createDefaultAuditManager()
+  auditManager: AuditManagerApi = createDefaultAuditManager(),
+  simulatorManager: SimulatorManagerApi = createDefaultSimulatorManager(logger),
+  simulatorSubscription: SimulatorSubscriptionApi = createNoopSimulatorSubscription()
 ): void {
   handleIpc(IPC_CHANNELS.app.getInfo, logger, () => ({
     name: app.getName(),
@@ -373,6 +393,28 @@ export function registerIpcHandlers(
   handleIpc<HistoricalTrendResult>(IPC_CHANNELS.trends.queryHistorical, logger, (payload) => (
     trendManager.queryHistoricalTrend(parseHistoricalTrendQuery(payload, `ipc:${IPC_CHANNELS.trends.queryHistorical}`))
   ))
+
+  handleIpc<SimulatorStatusSnapshot>(IPC_CHANNELS.simulators.getStatus, logger, () => (
+    simulatorManager.getStatus()
+  ))
+
+  handleIpc<SimulatorRuntimeStatus>(IPC_CHANNELS.simulators.start, logger, (payload) => {
+    const request = parseSimulatorLifecycleRequest(payload, `ipc:${IPC_CHANNELS.simulators.start}`)
+    return simulatorManager.startSimulator(request.kind)
+  })
+
+  handleIpc<SimulatorRuntimeStatus>(IPC_CHANNELS.simulators.stop, logger, (payload) => {
+    const request = parseSimulatorLifecycleRequest(payload, `ipc:${IPC_CHANNELS.simulators.stop}`)
+    return simulatorManager.stopSimulator(request.kind)
+  })
+
+  handleIpc<void>(IPC_CHANNELS.simulators.subscribeStatus, logger, (_payload, event) => {
+    simulatorSubscription.addSubscriber(event.sender)
+  })
+
+  handleIpc<void>(IPC_CHANNELS.simulators.unsubscribeStatus, logger, (_payload, event) => {
+    simulatorSubscription.removeSubscriber(event.sender.id)
+  })
 }
 
 function handleIpc<TResult>(
@@ -593,6 +635,13 @@ function createDefaultTrendManager(): TrendManagerApi {
 }
 
 function createNoopTrendSubscription(): TrendSubscriptionApi {
+  return {
+    addSubscriber: () => undefined,
+    removeSubscriber: () => undefined
+  }
+}
+
+function createNoopSimulatorSubscription(): SimulatorSubscriptionApi {
   return {
     addSubscriber: () => undefined,
     removeSubscriber: () => undefined

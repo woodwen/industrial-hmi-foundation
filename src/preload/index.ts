@@ -26,6 +26,9 @@ import type {
   RealtimeTrendListener,
   RealtimeTrendRequest,
   SetUserEnabledRequest,
+  SimulatorLifecycleListener,
+  SimulatorLifecycleRequest,
+  SimulatorStatusChangedEvent,
   TagValuesChangedEvent,
   TagValuesListener,
   UpdateRecipeRequest,
@@ -190,6 +193,30 @@ const hmiApi: HmiApi = {
       IPC_CHANNELS.trends.queryHistorical,
       query
     )
+  },
+  simulators: {
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.simulators.getStatus),
+    start: (request: SimulatorLifecycleRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.simulators.start,
+      request
+    ),
+    stop: (request: SimulatorLifecycleRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.simulators.stop,
+      request
+    ),
+    subscribeStatus: (listener: SimulatorLifecycleListener) => {
+      const wrappedListener = (_event: IpcRendererEvent, simulatorEvent: SimulatorStatusChangedEvent): void => {
+        listener(simulatorEvent)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.simulators.statusChanged, wrappedListener)
+      void ipcRenderer.invoke(IPC_CHANNELS.simulators.subscribeStatus)
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.simulators.statusChanged, wrappedListener)
+        void ipcRenderer.invoke(IPC_CHANNELS.simulators.unsubscribeStatus)
+      }
+    }
   }
 }
 

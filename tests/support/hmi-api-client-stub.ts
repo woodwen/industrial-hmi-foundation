@@ -7,7 +7,9 @@ import type {
   DeviceStatus,
   HmiResult,
   RecipeDto,
-  RecipeParameterDefinition
+  RecipeParameterDefinition,
+  SimulatorRuntimeStatus,
+  SimulatorStatusSnapshot
 } from '../../src/shared/hmi-api'
 import {
   DEFAULT_SIMULATOR_HOST,
@@ -196,6 +198,19 @@ export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiA
       endTime: '2026-08-18T00:00:00.000Z',
       emittedAt: '2026-08-18T00:00:00.000Z'
     })),
+    getSimulatorStatus: vi.fn<HmiApiClient['getSimulatorStatus']>().mockResolvedValue(success(createSimulatorSnapshot())),
+    startSimulator: vi.fn<HmiApiClient['startSimulator']>().mockImplementation(async (request) => success({
+      ...createSimulatorStatus(request.kind),
+      status: 'Running',
+      managed: true,
+      pid: 7301
+    })),
+    stopSimulator: vi.fn<HmiApiClient['stopSimulator']>().mockImplementation(async (request) => success({
+      ...createSimulatorStatus(request.kind),
+      status: 'Stopped',
+      managed: false
+    })),
+    subscribeSimulatorStatus: vi.fn<HmiApiClient['subscribeSimulatorStatus']>(() => () => undefined),
     ...overrides
   }
 }
@@ -218,6 +233,36 @@ function success<T>(data: T): HmiResult<T> {
   return {
     ok: true,
     data
+  }
+}
+
+function createSimulatorSnapshot(): SimulatorStatusSnapshot {
+  return {
+    simulators: [
+      createSimulatorStatus('modbusTcp'),
+      createSimulatorStatus('opcUa')
+    ],
+    emittedAt: '2026-08-18T00:00:00.000Z'
+  }
+}
+
+function createSimulatorStatus(kind: SimulatorRuntimeStatus['kind']): SimulatorRuntimeStatus {
+  return {
+    kind,
+    status: 'Stopped',
+    endpoint: kind === 'opcUa'
+      ? {
+          label: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator',
+          endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+        }
+      : {
+          label: '127.0.0.1:1502/unit-1',
+          host: '127.0.0.1',
+          port: 1502,
+          unitId: 1
+        },
+    managed: false,
+    updatedAt: '2026-08-18T00:00:00.000Z'
   }
 }
 

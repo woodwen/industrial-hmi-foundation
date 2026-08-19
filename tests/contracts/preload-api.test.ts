@@ -45,6 +45,11 @@ import type {
   RealtimeTrendRequest,
   RealtimeTrendSnapshot,
   SetUserEnabledRequest,
+  SimulatorLifecycleListener,
+  SimulatorLifecycleRequest,
+  SimulatorRuntimeStatus,
+  SimulatorStatusChangedEvent,
+  SimulatorStatusSnapshot,
   TagSnapshot,
   TagValuesChangedEvent,
   TagValuesListener,
@@ -163,6 +168,13 @@ describe('Preload HMI API contract', () => {
     expectTypeOf<HmiApi['trends']['subscribeRealtime']>().returns.toEqualTypeOf<() => void>()
     expectTypeOf<HmiApi['trends']['queryHistorical']>().parameters.toEqualTypeOf<[HistoricalTrendQuery]>()
     expectTypeOf<HmiApi['trends']['queryHistorical']>().returns.toEqualTypeOf<Promise<HmiResult<HistoricalTrendResult>>>()
+    expectTypeOf<HmiApi['simulators']['getStatus']>().returns.toEqualTypeOf<Promise<HmiResult<SimulatorStatusSnapshot>>>()
+    expectTypeOf<HmiApi['simulators']['start']>().parameters.toEqualTypeOf<[SimulatorLifecycleRequest]>()
+    expectTypeOf<HmiApi['simulators']['start']>().returns.toEqualTypeOf<Promise<HmiResult<SimulatorRuntimeStatus>>>()
+    expectTypeOf<HmiApi['simulators']['stop']>().parameters.toEqualTypeOf<[SimulatorLifecycleRequest]>()
+    expectTypeOf<HmiApi['simulators']['stop']>().returns.toEqualTypeOf<Promise<HmiResult<SimulatorRuntimeStatus>>>()
+    expectTypeOf<HmiApi['simulators']['subscribeStatus']>().parameters.toEqualTypeOf<[SimulatorLifecycleListener]>()
+    expectTypeOf<HmiApi['simulators']['subscribeStatus']>().returns.toEqualTypeOf<() => void>()
   })
 
   it('routes device methods through dedicated IPC channels', async () => {
@@ -502,6 +514,61 @@ describe('Preload HMI API contract', () => {
     )
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.trends.unsubscribeRealtime)
   })
+
+  it('routes simulator lifecycle methods and subscription through dedicated IPC channels', async () => {
+    await import('../../src/preload/index')
+    const hmiApi = electronMocks.exposedApis.get('hmi') as HmiApi
+    const listener = vi.fn<SimulatorLifecycleListener>()
+    const request: SimulatorLifecycleRequest = {
+      kind: 'modbusTcp'
+    }
+
+    await hmiApi.simulators.getStatus()
+    await hmiApi.simulators.start(request)
+    await hmiApi.simulators.stop(request)
+    const unsubscribe = hmiApi.simulators.subscribeStatus(listener)
+    emitSimulatorStatusEvent({
+      simulators: [{
+        kind: 'modbusTcp',
+        status: 'Running',
+        endpoint: {
+          label: '127.0.0.1:1502/unit-1'
+        },
+        managed: true,
+        pid: 4201,
+        updatedAt: '2026-08-18T00:00:00.000Z'
+      }],
+      changed: {
+        kind: 'modbusTcp',
+        status: 'Running',
+        endpoint: {
+          label: '127.0.0.1:1502/unit-1'
+        },
+        managed: true,
+        pid: 4201,
+        updatedAt: '2026-08-18T00:00:00.000Z'
+      },
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })
+
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.simulators.getStatus)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.simulators.start, request)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.simulators.stop, request)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.simulators.subscribeStatus)
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      changed: expect.objectContaining({
+        status: 'Running'
+      })
+    }))
+
+    unsubscribe()
+
+    expect(electronMocks.ipcRenderer.removeListener).toHaveBeenCalledWith(
+      IPC_CHANNELS.simulators.statusChanged,
+      expect.any(Function)
+    )
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.simulators.unsubscribeStatus)
+  })
 })
 
 function emitUpdateEvent(event: AppUpdateEvent): void {
@@ -530,6 +597,12 @@ function emitAlarmEvent(event: AlarmChangedEvent): void {
 
 function emitRealtimeTrendEvent(event: RealtimeTrendChangedEvent): void {
   electronMocks.listeners.get(IPC_CHANNELS.trends.realtimeChanged)?.forEach((listener) => {
+    listener({}, event)
+  })
+}
+
+function emitSimulatorStatusEvent(event: SimulatorStatusChangedEvent): void {
+  electronMocks.listeners.get(IPC_CHANNELS.simulators.statusChanged)?.forEach((listener) => {
     listener({}, event)
   })
 }

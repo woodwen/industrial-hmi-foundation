@@ -9,9 +9,12 @@ describe('project documentation content', () => {
     const readme = readRepoFile('README.md')
 
     expect(readme).toContain('[docs/project-manual.md](docs/project-manual.md)')
+    expect(readme).toContain('应用内通过 `帮助 -> 项目说明书` 离线查看')
+    expect(readme).toContain('在 `Simulator` 区域启动 Modbus TCP 或 OPC UA Simulator')
+    expect(readme).toContain('设备连接仍由 DeviceManager 流程完成')
     expect(readme).toContain('Modbus RTU 是真实工业串口协议形态，但当前项目未实现 RTU runtime')
     expect(readme).toContain('build/icon.png')
-    expect(readme).toContain('openspec validate refresh-app-icon-project-docs --strict')
+    expect(readme).toContain('openspec validate add-app-simulator-and-project-manual --strict')
     expect(readme).toContain('不代表真实生产现场 Safety System')
   })
 
@@ -55,6 +58,8 @@ describe('project documentation content', () => {
     expect(changelog).toContain('## Unreleased / 0.1.1')
     expect(changelog).toContain('新增跨平台应用图标资产')
     expect(changelog).toContain('新增 `docs/project-manual.md` 项目说明书')
+    expect(changelog).toContain('新增应用内 Simulator 控制入口')
+    expect(changelog).toContain('`yarn simulator:start` 和 `yarn simulator:opcua:start` 继续作为维护者')
     expect(changelog).toContain('Electron Builder 显式引用 `build/icon.png`、`build/icon.icns` 和 `build/icon.ico`')
   })
 })

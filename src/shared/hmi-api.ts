@@ -40,6 +40,12 @@ import type {
   AuditLogResult,
   AuditQuery
 } from './audit'
+import type {
+  SimulatorLifecycleListener,
+  SimulatorLifecycleRequest,
+  SimulatorRuntimeStatus,
+  SimulatorStatusSnapshot
+} from './simulator'
 
 export type { TagSnapshot, TagValuesChangedEvent } from './tag'
 export type {
@@ -85,6 +91,16 @@ export type {
   AuditRecord,
   AuditResult
 } from './audit'
+export { DEFAULT_OPCUA_SIMULATOR_ENDPOINT_URL } from './simulator'
+export type {
+  SimulatorKind,
+  SimulatorLifecycleListener,
+  SimulatorLifecycleRequest,
+  SimulatorLifecycleStatus,
+  SimulatorRuntimeStatus,
+  SimulatorStatusChangedEvent,
+  SimulatorStatusSnapshot
+} from './simulator'
 
 export type LogCategory = 'application' | 'communication' | 'error'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -145,7 +161,6 @@ export type DeviceConnectionStatus =
   | 'Reconnecting'
   | 'Fault'
 
-export const DEFAULT_OPCUA_SIMULATOR_ENDPOINT_URL = 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
 export type DeviceProtocolKind = 'modbusTcp' | 'opcUa'
 
 export interface DeviceEndpoint {
@@ -352,5 +367,11 @@ export interface HmiApi {
     getRealtimeSnapshot(request: RealtimeTrendRequest): Promise<HmiResult<RealtimeTrendSnapshot>>
     subscribeRealtime(request: RealtimeTrendRequest, listener: RealtimeTrendListener): Unsubscribe
     queryHistorical(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>>
+  }
+  simulators: {
+    getStatus(): Promise<HmiResult<SimulatorStatusSnapshot>>
+    start(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>>
+    stop(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>>
+    subscribeStatus(listener: SimulatorLifecycleListener): Unsubscribe
   }
 }

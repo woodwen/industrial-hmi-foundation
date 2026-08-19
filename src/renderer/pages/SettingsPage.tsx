@@ -5,7 +5,7 @@ import { PageFrame } from '../components/PageFrame'
 import { useViewModels } from '../viewmodels/ViewModelContext'
 
 export const SettingsPage = observer(() => {
-  const { app, device } = useViewModels()
+  const { app, device, simulators } = useViewModels()
 
   return (
     <PageFrame
@@ -93,6 +93,66 @@ export const SettingsPage = observer(() => {
           <input type="checkbox" checked readOnly />
         </label>
       </div>
+
+      <section className="device-panel" aria-labelledby="simulator-settings-title">
+        <div className="device-panel-heading">
+          <div>
+            <h3 id="simulator-settings-title">{app.t('simulator.title')}</h3>
+            <p>{app.t('simulator.description')}</p>
+          </div>
+          <span>{app.t('simulator.managedHint')}</span>
+        </div>
+
+        <div className="simulator-list" role="table" aria-label={app.t('simulator.title')}>
+          <div role="row" className="simulator-row simulator-header">
+            <span role="columnheader">{app.t('simulator.protocol')}</span>
+            <span role="columnheader">{app.t('simulator.endpoint')}</span>
+            <span role="columnheader">{app.t('simulator.status')}</span>
+            <span role="columnheader">{app.t('simulator.managed')}</span>
+            <span role="columnheader">{app.t('simulator.actions')}</span>
+          </div>
+          {simulators.rows.map((row) => (
+            <div role="row" className="simulator-row" key={row.kind}>
+              <span role="cell">{row.protocolLabel}</span>
+              <span role="cell">{row.endpointLabel}</span>
+              <span role="cell">
+                <span className={`status-pill simulator-status-${row.status.toLowerCase()}`}>
+                  {app.t(row.statusKey)}
+                </span>
+              </span>
+              <span role="cell">{app.t(row.managedLabelKey)}</span>
+              <span role="cell" className="simulator-actions">
+                <button
+                  type="button"
+                  className="primary-action"
+                  disabled={!row.canStart}
+                  onClick={() => {
+                    void simulators.start(row.kind)
+                  }}
+                >
+                  {app.t('simulator.start')}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  disabled={!row.canStop}
+                  onClick={() => {
+                    void simulators.stop(row.kind)
+                  }}
+                >
+                  {app.t('simulator.stop')}
+                </button>
+              </span>
+              {row.errorMessage ? (
+                <span role="cell" className="simulator-error">{row.errorMessage}</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        {simulators.error ? (
+          <p className="inline-error" role="alert">{simulators.error.message}</p>
+        ) : null}
+      </section>
     </PageFrame>
   )
 })

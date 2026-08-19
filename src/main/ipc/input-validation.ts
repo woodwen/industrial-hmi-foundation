@@ -33,6 +33,7 @@ import {
   type RealtimeTrendRequest,
   type TrendRangePreset
 } from '../../shared/trend'
+import { SIMULATOR_KINDS, type SimulatorLifecycleRequest } from '../../shared/simulator'
 
 const LOG_CATEGORIES: readonly LogCategory[] = ['application', 'communication', 'error']
 const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error']
@@ -135,6 +136,17 @@ export function parseDeviceConfigUpdateRequest(payload: unknown, source: string)
       port: requirePositiveInteger(connection.port, 'Modbus port must be a positive integer.', source),
       unitId: requirePositiveInteger(connection.unitId, 'Modbus unitId must be a positive integer.', source)
     }
+  }
+}
+
+export function parseSimulatorLifecycleRequest(payload: unknown, source: string): SimulatorLifecycleRequest {
+  const record = requireRecord(payload, 'Simulator lifecycle payload must be an object.', source)
+  if (Object.keys(record).some((key) => key !== 'kind')) {
+    throwInvalidPayload('Simulator lifecycle payload contains unsupported fields.', source)
+  }
+
+  return {
+    kind: requireOneOf(record.kind, SIMULATOR_KINDS, 'Simulator kind is invalid.', source)
   }
 }
 

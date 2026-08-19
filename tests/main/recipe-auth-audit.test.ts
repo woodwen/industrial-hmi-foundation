@@ -450,7 +450,7 @@ describe('Recipe, local user permission, and audit integration', () => {
         }
       })
     } finally {
-      runtime.dispose()
+      await runtime.dispose()
     }
   })
 

@@ -33,7 +33,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
         'Device Tag Monitor 展示默认 Tag 的 Value、Unit、Quality 和 Timestamp。',
         'Alarm、Trend、Recipe 和 Audit 页面用于展示报警确认/恢复、历史趋势、配方下载和审计记录。',
         '权限模型区分 Operator、Engineer 和 Admin；Renderer 可以调整界面，但关键写操作仍由 Main Process 权威校验。',
-        'Settings 可以选择 Modbus TCP 或 OPC UA 通信配置。'
+        'Settings 可以选择 Modbus TCP 或 OPC UA 通信配置，并在 Simulator 区域启动/停止本地 Modbus TCP 或 OPC UA Simulator。'
       ]
     },
     {
@@ -73,7 +73,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '当前边界',
       paragraphs: ['当前版本不是生产控制系统，设备通信仅用于连接本项目提供的模拟 PLC 或兼容测试端点。'],
       bullets: [
-        '已实现独立 PLC Simulator、Modbus TCP adapter、DeviceManager、设备状态机、自动重连、Tag 模型、TagCache、PollingScheduler、Dashboard 实时监控、Device Tag Monitor、CommandService 和基础写入验证。',
+        '已实现独立 PLC Simulator、应用内 Simulator 控制、Modbus TCP adapter、DeviceManager、设备状态机、自动重连、Tag 模型、TagCache、PollingScheduler、Dashboard 实时监控、Device Tag Monitor、CommandService 和基础写入验证。',
         'OPC UA 默认使用本地 anonymous / no-security simulator，不代表生产 OPC UA 安全配置。',
         'Modbus RTU 当前未实现 runtime；文档只解释 RTU 协议概念和未来接入方式。',
         'Tag Quality 显示 Bad 或 Uncertain 时，页面可以保留 last value，但不能把旧值当作正常实时数据。',
@@ -87,8 +87,8 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '常见问题',
       paragraphs: ['如果 Device 页面无法读取数据，先确认 PLC Simulator 已独立启动。'],
       bullets: [
-        '看不到实时数据：运行 yarn simulator:start 后再在 Device 页面 Connect。',
-        '使用 OPC UA：运行 yarn simulator:opcua:start，并在 Settings 中选择 OPC UA endpoint。',
+        '看不到实时数据：先在 Settings 的 Simulator 区域启动 Modbus TCP Simulator，再到 Device 页面 Connect；维护者也可以用 yarn simulator:start 独立启动。',
+        '使用 OPC UA：先在 Settings 的 Simulator 区域启动 OPC UA Simulator，并在 Settings 中选择 OPC UA endpoint；维护者也可以用 yarn simulator:opcua:start 独立启动。',
         'Tag Quality 显示 Bad：检查 Simulator 是否停止或通信是否中断；恢复 Simulator 后 HMI 会按 backoff 自动重连，已进入 Fault 时再手工 Connect。',
         '报警仍然显示：Acknowledge 只表示已确认，工况恢复后才进入 Recovered。',
         '检查更新提示开发环境：请使用 packaged 应用验证真实更新检查。',
@@ -121,7 +121,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
         'Device Tag Monitor shows Value, Unit, Quality, and Timestamp for the default Tags.',
         'Alarm, Trend, Recipe, and Audit pages show alarm acknowledgement/recovery, historical trends, Recipe download, and audit records.',
         'Permissions distinguish Operator, Engineer, and Admin; Renderer can adjust UI, but Main Process still authorizes critical writes.',
-        'Settings can select Modbus TCP or OPC UA communication configuration.'
+        'Settings can select Modbus TCP or OPC UA communication configuration and start/stop the local Modbus TCP or OPC UA Simulator.'
       ]
     },
     {
@@ -161,7 +161,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'Current Scope',
       paragraphs: ['This version is not a production control system. Device communication is intended for the bundled PLC Simulator or a compatible test endpoint.'],
       bullets: [
-        'PLC Simulator, Modbus TCP adapter, DeviceManager, explicit device state machine, automatic reconnect, Tag model, TagCache, PollingScheduler, Dashboard realtime monitoring, Device Tag Monitor, CommandService, and basic write verification are implemented.',
+        'PLC Simulator, in-app Simulator control, Modbus TCP adapter, DeviceManager, explicit device state machine, automatic reconnect, Tag model, TagCache, PollingScheduler, Dashboard realtime monitoring, Device Tag Monitor, CommandService, and basic write verification are implemented.',
         'OPC UA defaults to a local anonymous / no-security simulator and is not a production OPC UA security profile.',
         'Modbus RTU runtime is not implemented; the documentation only explains the protocol concept and future adapter path.',
         'Bad or Uncertain Tag Quality can keep the last value visible, but it must not be treated as healthy realtime data.',
@@ -175,8 +175,8 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'FAQ',
       paragraphs: ['If Device cannot read data, confirm the PLC Simulator is running independently.'],
       bullets: [
-        'No realtime data: run yarn simulator:start, then use Connect on the Device page.',
-        'Using OPC UA: run yarn simulator:opcua:start and select the OPC UA endpoint in Settings.',
+        'No realtime data: start the Modbus TCP Simulator from Settings, then use Connect on the Device page; maintainers can still use yarn simulator:start for independent validation.',
+        'Using OPC UA: start the OPC UA Simulator from Settings and select the OPC UA endpoint in Settings; maintainers can still use yarn simulator:opcua:start for independent validation.',
         'Tag Quality shows Bad: check whether the Simulator stopped or communication was interrupted; after the Simulator recovers, HMI reconnects automatically with backoff, and Fault still requires manual Connect.',
         'Alarm remains visible: Acknowledge only records operator confirmation; the condition must recover before the alarm is Recovered.',
         'Development update status: use a packaged app to verify real update checks.',

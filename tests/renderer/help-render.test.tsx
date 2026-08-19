@@ -14,6 +14,7 @@ describe('Renderer help views', () => {
     const markup = renderApp(rootViewModel)
 
     expect(markup).toContain('使用说明书')
+    expect(markup).toContain('项目说明书')
     expect(markup).toContain('版本更新说明')
     expect(markup).toContain('检查更新')
   })
@@ -40,7 +41,7 @@ describe('Renderer help views', () => {
 
     expect(markup).toContain('User Manual')
     expect(markup).toContain('Current Scope')
-    expect(markup).toContain('PLC Simulator, Modbus TCP adapter')
+    expect(markup).toContain('in-app Simulator control')
     expect(markup).toContain('Modbus RTU runtime is not implemented')
     expect(markup).toContain('Permissions distinguish Operator, Engineer, and Admin')
   })
@@ -55,6 +56,19 @@ describe('Renderer help views', () => {
     expect(markup).toContain('当前版本 0.1.1')
     expect(markup).toContain('Industrial HMI Foundation 的产品可交付基础')
     expect(markup).toContain('新增跨平台应用图标资产')
+  })
+
+  it('renders the detailed project manual inside the Help dialog', () => {
+    const rootViewModel = createRootViewModel(createApiClientStub())
+    rootViewModel.app.openProjectManual()
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('项目说明书')
+    expect(markup).toContain('自动化恒温混料设备监控与控制系统')
+    expect(markup).toContain('Modbus TCP Simulator')
+    expect(markup).toContain('怎么和 PLC / 设备通信？')
+    expect(markup).toContain('不替代 Safety PLC')
   })
 })
 

@@ -12,7 +12,7 @@ import {
 } from '../localization/messages'
 import { getPageTitle, type PageId } from './pages'
 
-type HelpDialog = 'manual' | 'version-updates' | null
+type HelpDialog = 'manual' | 'project-manual' | 'version-updates' | null
 
 interface LanguageStorage {
   getLanguage(): LanguageCode | null
@@ -101,6 +101,11 @@ export class AppViewModel {
 
   openVersionUpdates(): void {
     this.activeHelpDialog = 'version-updates'
+    this.closeHelpMenu()
+  }
+
+  openProjectManual(): void {
+    this.activeHelpDialog = 'project-manual'
     this.closeHelpMenu()
   }
 

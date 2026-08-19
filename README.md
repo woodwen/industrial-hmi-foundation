@@ -6,7 +6,7 @@ Industrial HMI Foundation 是一个基于 Electron 的工业自动化上位机 /
 
 应用图标使用工业 HMI 面板、趋势图和设备控制元素作为品牌视觉，项目内打包资产位于 `build/icon.png`、`build/icon.icns` 和 `build/icon.ico`。
 
-详细项目说明书见 [docs/project-manual.md](docs/project-manual.md)。该文档逐条回答 PLC/设备通信、Modbus TCP/RTU、OPC UA、周期采集、1000 点位、断线重连、UI 隔离、实时刷新、报警、历史趋势、PLC 控制、防重复命令、通信线程隔离、异常超时重连、配方、Tag 管理、权限和操作日志等问题。
+详细项目说明书见 [docs/project-manual.md](docs/project-manual.md)，也可以在应用内通过 `帮助 -> 项目说明书` 离线查看。该文档逐条回答 PLC/设备通信、Modbus TCP/RTU、OPC UA、周期采集、1000 点位、断线重连、UI 隔离、实时刷新、报警、历史趋势、PLC 控制、防重复命令、通信线程隔离、异常超时重连、配方、Tag 管理、权限和操作日志等问题。
 
 ## 1. 项目介绍
 
@@ -160,22 +160,26 @@ Recipe -> Validate -> Generate Commands -> CommandService -> ProtocolAdapter -> 
 yarn install
 ```
 
-启动 Modbus TCP Simulator：
+普通演示路径：
+
+1. 启动应用开发环境。
+2. 进入 Settings 页面，在 `Simulator` 区域启动 Modbus TCP 或 OPC UA Simulator。
+3. 回到 Device 页面执行 Connect。启动 Simulator 只是准备本地测试端点，不等于连接设备；设备连接仍由 DeviceManager 流程完成。
+
+```bash
+yarn dev
+```
+
+维护者、自动化测试和独立协议验证仍可使用脚本启动 Modbus TCP Simulator：
 
 ```bash
 yarn simulator:start
 ```
 
-启动 OPC UA Simulator：
+或启动 OPC UA Simulator：
 
 ```bash
 yarn simulator:opcua:start
-```
-
-启动应用开发环境：
-
-```bash
-yarn dev
 ```
 
 运行大规模 Tag profile：
@@ -249,7 +253,7 @@ yarn build
 OpenSpec 检查：
 
 ```bash
-openspec validate refresh-app-icon-project-docs --strict
+openspec validate add-app-simulator-and-project-manual --strict
 openspec validate --all --strict
 git diff --check
 ```
@@ -258,7 +262,7 @@ git diff --check
 
 ## 16. 文档入口
 
-- [项目说明书](docs/project-manual.md)：详细解释开发目的、解决的问题、协议映射和关键工程问答。
+- [项目说明书](docs/project-manual.md)：详细解释开发目的、解决的问题、协议映射和关键工程问答；应用内 `帮助 -> 项目说明书` 可离线查看同源内容。
 - 应用内 `帮助 -> 使用说明书`：离线操作说明。
 - 应用内 `帮助 -> 版本更新说明`：从内置 `CHANGELOG.md` 展示版本变化。
 - [docs/modbus-plc-simulator.md](docs/modbus-plc-simulator.md)：Modbus Simulator 说明。

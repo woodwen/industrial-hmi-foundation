@@ -71,6 +71,25 @@ describe('package build config', () => {
     ]))
   })
 
+  it('builds simulator runtime before app dev/build and unpacks it for managed Simulator control', () => {
+    expect(packageJson.scripts.predev).toContain('yarn simulator:build')
+    expect(packageJson.scripts.build).toContain('yarn simulator:build')
+    expect(packageJson.scripts['simulator:start']).toContain('out/simulator/simulator/index.js')
+    expect(packageJson.scripts['simulator:opcua:start']).toContain('out/simulator/simulator/opcua-index.js')
+    expect(packageJson.build.asarUnpack).toEqual(expect.arrayContaining([
+      'out/simulator/**'
+    ]))
+  })
+
+  it('embeds the project manual source into the renderer bundle', () => {
+    const projectManualModule = readFileSync(
+      new URL('../src/renderer/help/project-manual.ts', import.meta.url),
+      'utf8'
+    )
+
+    expect(projectManualModule).toContain("../../../docs/project-manual.md?raw")
+  })
+
   it('prepares the next dev version after publishing without creating release loops', () => {
     expect(releaseWorkflow).toContain('prepare-next-dev-version:')
     expect(releaseWorkflow).toContain('git ls-remote --exit-code --heads origin dev')

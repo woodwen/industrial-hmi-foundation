@@ -38,6 +38,10 @@ import type {
   RealtimeTrendRequest,
   RealtimeTrendSnapshot,
   SetUserEnabledRequest,
+  SimulatorLifecycleListener,
+  SimulatorLifecycleRequest,
+  SimulatorRuntimeStatus,
+  SimulatorStatusSnapshot,
   TagSnapshot,
   TagValuesListener,
   UpdateRecipeRequest,
@@ -91,6 +95,10 @@ export interface HmiApiClient {
   getRealtimeTrendSnapshot(request: RealtimeTrendRequest): Promise<HmiResult<RealtimeTrendSnapshot>>
   subscribeRealtimeTrend(request: RealtimeTrendRequest, listener: RealtimeTrendListener): Unsubscribe
   queryHistoricalTrend(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>>
+  getSimulatorStatus(): Promise<HmiResult<SimulatorStatusSnapshot>>
+  startSimulator(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>>
+  stopSimulator(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>>
+  subscribeSimulatorStatus(listener: SimulatorLifecycleListener): Unsubscribe
 }
 
 export class AppApplicationService {
@@ -272,5 +280,21 @@ export class AppApplicationService {
 
   queryHistoricalTrend(query: HistoricalTrendQuery): Promise<HmiResult<HistoricalTrendResult>> {
     return this.apiClient.queryHistoricalTrend(query)
+  }
+
+  getSimulatorStatus(): Promise<HmiResult<SimulatorStatusSnapshot>> {
+    return this.apiClient.getSimulatorStatus()
+  }
+
+  startSimulator(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>> {
+    return this.apiClient.startSimulator(request)
+  }
+
+  stopSimulator(request: SimulatorLifecycleRequest): Promise<HmiResult<SimulatorRuntimeStatus>> {
+    return this.apiClient.stopSimulator(request)
+  }
+
+  subscribeSimulatorStatus(listener: SimulatorLifecycleListener): Unsubscribe {
+    return this.apiClient.subscribeSimulatorStatus(listener)
   }
 }

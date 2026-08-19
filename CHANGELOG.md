@@ -16,12 +16,14 @@
 - 新增 OPC UA 协议适配器、OPC UA Simulator、协议切换配置、subscription 采集链路、性能 profile 和长期运行 smoke profile。
 - 新增跨平台应用图标资产，使用工业 HMI 面板、趋势图和设备控制元素作为桌面应用品牌视觉。
 - 新增 `docs/project-manual.md` 项目说明书，详细说明开发目的、解决的问题、模拟协议与真实协议关系，并逐条回答 PLC 通信、采集、报警、趋势、配方、权限和审计问题。
+- 新增应用内 Simulator 控制入口，可在 Settings 中启动/停止 Modbus TCP 与 OPC UA Simulator，并在 Help 中离线查看项目说明书。
 
 ### Changed
 
 - 将应用默认语言明确为中文，并为英文演示保留可切换文案和中文回退。
 - 明确 release version 以 `package.json` 的稳定 SemVer 为唯一来源，并要求 changelog 顶部版本与 package 版本保持一致。
 - 更新 README 和应用内使用说明书，使它们作为项目入口和离线操作说明，并链接到详细项目说明书。
+- 将 Simulator 普通演示路径调整为应用内启动，`yarn simulator:start` 和 `yarn simulator:opcua:start` 继续作为维护者、自动化测试和独立协议验证路径。
 
 ### Build
 
