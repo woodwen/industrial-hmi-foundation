@@ -1,10 +1,11 @@
 {
   "name": "industrial-hmi-foundation",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Industrial HMI foundation desktop application.",
   "author": "woodmax",
   "license": "MIT",
+  "packageManager": "yarn@1.22.22",
   "homepage": "https://github.com/woodwen/industrial-hmi-foundation#readme",
   "repository": {
     "type": "git",
@@ -12,24 +13,39 @@
   },
   "main": "out/main/index.js",
   "scripts": {
+    "predev": "yarn rebuild:native:electron",
     "dev": "electron-vite dev",
+    "rebuild:native:electron": "electron-rebuild -f -w better-sqlite3",
+    "rebuild:native:node": "node-gyp rebuild --release --directory=node_modules/better-sqlite3",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
+    "pretest": "yarn rebuild:native:node",
     "test": "vitest run",
-    "build": "npm run typecheck && electron-vite build",
-    "dist": "npm run build && electron-builder",
-    "smoke:start": "node scripts/smoke-start.mjs"
+    "build": "yarn typecheck && electron-vite build",
+    "dist": "yarn build && electron-builder",
+    "presmoke:start": "yarn rebuild:native:electron",
+    "smoke:start": "node scripts/smoke-start.mjs",
+    "simulator:build": "tsc -p tsconfig.simulator.json",
+    "simulator:start": "yarn simulator:build && node out/simulator/simulator/index.js",
+    "simulator:opcua:start": "yarn simulator:build && node out/simulator/simulator/opcua-index.js",
+    "perf:profile": "node scripts/run-performance-profile.mjs",
+    "longrun:smoke": "node scripts/run-long-run-smoke.mjs",
+    "simulator:dev": "yarn simulator:start"
   },
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "builder-util-runtime": "9.7.0",
     "electron-updater": "^6.8.9",
     "mobx": "^6.13.5",
     "mobx-react-lite": "^4.0.7",
+    "node-opcua": "^2.177.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
     "@eslint/js": "^9.13.0",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.8.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -39,16 +55,23 @@
     "electron-vite": "^2.3.0",
     "eslint": "^9.13.0",
     "globals": "^15.11.0",
+    "node-gyp": "^12.4.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.12.2",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
+  },
+  "resolutions": {
+    "hexy": "0.3.5"
   },
   "build": {
     "appId": "com.industrialhmi.foundation",
     "productName": "Industrial HMI Foundation",
     "artifactName": "Industrial-HMI-Foundation-${version}-${arch}.${ext}",
     "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
     "directories": {
       "output": "release"
     },

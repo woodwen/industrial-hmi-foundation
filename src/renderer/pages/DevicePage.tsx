@@ -12,22 +12,289 @@ export const DevicePage = observer(() => {
       description={app.t(device.descriptionKey)}
       eyebrow={app.t('common.moduleFrame')}
     >
-      <div className="placeholder-panel">
-        <h3>{app.t(device.connectionStateKey)}</h3>
-        <p>{app.t(device.emptyStateKey)}</p>
-      </div>
-      <div className="module-table" role="table" aria-label={app.t('device.table.aria')}>
-        <div role="row" className="module-table-header">
-          <span role="columnheader">{app.t('device.table.name')}</span>
-          <span role="columnheader">{app.t('device.table.protocol')}</span>
-          <span role="columnheader">{app.t('device.table.status')}</span>
+      <section className="device-panel" aria-labelledby="device-connection-title">
+        <div className="device-panel-heading">
+          <div>
+            <h3 id="device-connection-title">{app.t('device.connection.title')}</h3>
+            <p>{device.endpointLabel}</p>
+          </div>
+          <span className={`status-pill status-${device.status.connectionStatus.toLowerCase()}`}>
+            {app.t(device.connectionStatusKey)}
+          </span>
         </div>
-        <div role="row" className="module-table-row">
-          <span role="cell">{app.t('device.table.reserved')}</span>
-          <span role="cell">{app.t('device.table.notConfigured')}</span>
-          <span role="cell">{app.t('device.table.placeholder')}</span>
+
+        <div className="device-toolbar" aria-label={app.t('device.actions.aria')}>
+          <button
+            type="button"
+            className="primary-action"
+            disabled={!device.canConnect}
+            onClick={() => {
+              void device.connect()
+            }}
+          >
+            {app.t('device.actions.connect')}
+          </button>
+          <button
+            type="button"
+            className="secondary-action"
+            disabled={!device.canDisconnect}
+            onClick={() => {
+              void device.disconnect()
+            }}
+          >
+            {app.t('device.actions.disconnect')}
+          </button>
+          <button
+            type="button"
+            className="secondary-action"
+            disabled={device.isBusy}
+            onClick={() => {
+              void device.refreshStatus()
+            }}
+          >
+            {app.t('device.actions.refreshStatus')}
+          </button>
+          <button
+            type="button"
+            className="secondary-action"
+            disabled={device.isBusy || !device.isConnected}
+            onClick={() => {
+              void device.readConfiguredPoints()
+            }}
+          >
+            {app.t('device.actions.readValues')}
+          </button>
         </div>
-      </div>
+
+        <dl className="device-status-grid">
+          <div>
+            <dt>{app.t('device.status.deviceName')}</dt>
+            <dd>{device.status.name}</dd>
+          </div>
+          <div>
+            <dt>{app.t('device.status.protocol')}</dt>
+            <dd>{device.protocolLabel}</dd>
+          </div>
+          <div>
+            <dt>{app.t('device.status.lastSuccess')}</dt>
+            <dd>{device.status.lastSuccessfulAt ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>{app.t('device.status.lastError')}</dt>
+            <dd>{device.status.lastError?.message ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>{app.t('device.status.lastTransition')}</dt>
+            <dd>{device.status.lastTransitionAt ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>{app.t('device.status.transitionReason')}</dt>
+            <dd>{device.status.transitionReason ?? '-'}</dd>
+          </div>
+        </dl>
+
+        {device.operationMessageKey ? (
+          <p className="operation-message">{app.t(device.operationMessageKey)}</p>
+        ) : null}
+        {!device.operationMessageKey && device.commandResultMessage ? (
+          <p className="operation-message">{device.commandResultMessage}</p>
+        ) : null}
+        {device.statusErrorMessage ? (
+          <p className="inline-error" role="alert">{device.statusErrorMessage}</p>
+        ) : null}
+      </section>
+
+      <section className="device-panel" aria-labelledby="tag-monitor-title">
+        <div className="device-panel-heading">
+          <div>
+            <h3 id="tag-monitor-title">{app.t('device.tagMonitor.title')}</h3>
+            <p>{app.t('device.tagMonitor.source')}</p>
+          </div>
+          <span>{app.t('device.tagMonitor.realtime')}</span>
+        </div>
+        <div className="tag-monitor-list" role="table" aria-label={app.t('device.tagMonitor.title')}>
+          <div role="row" className="tag-monitor-row tag-monitor-header">
+            <span role="columnheader">{app.t('device.tagMonitor.name')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.value')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.unit')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.quality')}</span>
+            <span role="columnheader">{app.t('device.tagMonitor.timestamp')}</span>
+          </div>
+          {device.tagMonitorRows.map((row) => (
+            <div role="row" className="tag-monitor-row" key={row.tagId}>
+              <span role="cell">{row.name}</span>
+              <span role="cell">{row.value}</span>
+              <span role="cell">{row.unit || '-'}</span>
+              <span role="cell" className={`quality-text quality-${row.quality.toLowerCase()}`}>{row.quality}</span>
+              <span role="cell">{row.timestamp ?? '-'}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="device-grid" aria-label={app.t('device.values.title')}>
+        <div className="device-panel">
+          <div className="device-panel-heading">
+            <h3>{app.t('device.values.title')}</h3>
+            <span>{app.t('device.values.manual')}</span>
+          </div>
+          <div className="device-value-list" role="table" aria-label={app.t('device.values.title')}>
+            <div role="row" className="device-value-row device-value-header">
+              <span role="columnheader">{app.t('device.values.point')}</span>
+              <span role="columnheader">{app.t('device.values.address')}</span>
+              <span role="columnheader">{app.t('device.values.value')}</span>
+              <span role="columnheader">{app.t('device.values.raw')}</span>
+            </div>
+            {device.valueRows.map((row) => (
+              <div role="row" className="device-value-row" key={row.pointId}>
+                <span role="cell">{row.label}</span>
+                <span role="cell">{row.referenceAddress}</span>
+                <span role="cell">{row.value}</span>
+                <span role="cell">{row.rawValues}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="device-panel">
+          <div className="device-panel-heading">
+            <h3>{app.t('device.write.title')}</h3>
+            <span>{app.t('device.write.allowedOnly')}</span>
+          </div>
+
+          <label className="field-row">
+            <span>{app.t('device.write.targetTemperature')}</span>
+            <input
+              type="number"
+              min="20"
+              max="90"
+              step="0.1"
+              value={device.targetTemperatureInput}
+              disabled={!device.canWriteParameters || device.writingPointId === 'targetTemperature'}
+              onChange={(event) => device.setTargetTemperatureInput(event.currentTarget.value)}
+            />
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canWriteParameters}
+              onClick={() => {
+                void device.writeTargetTemperature()
+              }}
+            >
+              {app.t('device.write.apply')}
+            </button>
+          </label>
+
+          <label className="field-row">
+            <span>{app.t('device.write.manualRpm')}</span>
+            <input
+              type="number"
+              min="0"
+              max="1800"
+              step="1"
+              value={device.manualMotorRpmInput}
+              disabled={!device.canWriteParameters || device.writingPointId === 'manualMotorRpmSetpoint'}
+              onChange={(event) => device.setManualMotorRpmInput(event.currentTarget.value)}
+            />
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canWriteParameters}
+              onClick={() => {
+                void device.writeManualMotorRpm()
+              }}
+            >
+              {app.t('device.write.apply')}
+            </button>
+          </label>
+        </div>
+      </section>
+
+      <section className="device-grid" aria-label={app.t('device.controls.title')}>
+        <div className="device-panel">
+          <div className="device-panel-heading">
+            <h3>{app.t('device.controls.title')}</h3>
+            <span>{app.t('device.controls.commandService')}</span>
+          </div>
+          {device.controlNoticeKey ? (
+            <p className="inline-error">{app.t(device.controlNoticeKey)}</p>
+          ) : null}
+          <div className="command-button-grid" aria-label={app.t('device.controls.device')}>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canStartStopCommand}
+              onClick={() => {
+                void device.startDevice()
+              }}
+            >
+              {app.t('device.controls.start')}
+            </button>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canStartStopCommand}
+              onClick={() => {
+                void device.stopDevice()
+              }}
+            >
+              {app.t('device.controls.stop')}
+            </button>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canAdvancedControlCommand}
+              onClick={() => {
+                void device.startMotor()
+              }}
+            >
+              {app.t('device.controls.motorStart')}
+            </button>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={!device.canAdvancedControlCommand}
+              onClick={() => {
+                void device.stopMotor()
+              }}
+            >
+              {app.t('device.controls.motorStop')}
+            </button>
+          </div>
+          <div className="coil-control-list">
+            {device.coilControls.map((control) => (
+              <label className="coil-control-row" key={control.pointId}>
+                <input
+                  type="checkbox"
+                  checked={control.checked}
+                  disabled={control.disabled}
+                  onChange={(event) => {
+                    void device.writeCoil(control.pointId, event.currentTarget.checked)
+                  }}
+                />
+                <span>{control.label}</span>
+                <small>{control.referenceAddress}</small>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="device-panel">
+          <div className="device-panel-heading">
+            <h3>{app.t('device.feedback.title')}</h3>
+            <span>{app.t('device.values.manual')}</span>
+          </div>
+          <div className="device-value-list compact" role="table" aria-label={app.t('device.feedback.title')}>
+            {device.feedbackRows.map((row) => (
+              <div role="row" className="device-value-row" key={row.pointId}>
+                <span role="cell">{row.label}</span>
+                <span role="cell">{row.referenceAddress}</span>
+                <span role="cell">{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </PageFrame>
   )
 })

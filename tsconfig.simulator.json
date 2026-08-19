@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "out/simulator",
+    "rootDir": "src",
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": [
+    "src/shared/**/*.ts",
+    "src/simulator/**/*.ts"
+  ]
+}

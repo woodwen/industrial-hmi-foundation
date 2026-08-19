@@ -14,7 +14,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '应用定位',
       paragraphs: [
         'Industrial HMI Foundation 是工业自动化上位机/HMI 的 Electron 基础工程，用于学习、面试展示和后续能力演进。',
-        '当前版本聚焦桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程。'
+        '当前版本在基础桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程之上，加入模拟设备的 Modbus TCP / OPC UA 链路验证、Tag 采集、实时监控、设备状态机、受控自动重连、报警、Historian、趋势、Recipe、权限、审计和 CommandService 控制。'
       ],
       bullets: [
         'Renderer 是受限 UI 层，只通过 window.hmi 访问桌面能力。',
@@ -27,10 +27,11 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '基础页面',
       paragraphs: ['左侧导航提供 Dashboard、Device、Alarm、Trend、Recipe、Tag Management 和 Settings 页面骨架。'],
       bullets: [
-        'Dashboard 展示未来现场总览的结构位置。',
-        'Device 为后续设备连接和协议适配器预留。',
-        'Alarm、Trend、Recipe 和 Tag Management 当前只展示占位结构。',
-        'Settings 当前展示日志与错误上报基础项。'
+        'Dashboard 展示模拟混料设备的温度、液位、压力、转速、运行状态、模式和生产计数。',
+        'Device 可以连接独立启动的模拟 PLC，并通过 CommandService 写入目标温度/手动转速、执行启停和阀门控制。',
+        'Device Tag Monitor 展示默认 Tag 的 Value、Unit、Quality 和 Timestamp。',
+        'Alarm、Trend、Recipe 和 Audit 页面用于展示报警生命周期、历史趋势、配方下载和审计记录。',
+        'Settings 可以选择 Modbus TCP 或 OPC UA 通信配置。'
       ]
     },
     {
@@ -49,7 +50,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['项目提供 application、communication 和 error 三类日志基础，并使用统一错误模型跨层传递错误。'],
       bullets: [
         'application log 用于应用生命周期和用户操作摘要。',
-        'communication log 为后续工业协议通信摘要预留。',
+        'communication log 记录设备连接、断开、手工读写、轮询摘要、超时和通信错误。',
         'error log 用于 IPC、Main 和 Renderer 顶层错误。',
         '错误 shape 包含 code、message、detail、source 和 cause。'
       ]
@@ -67,19 +68,20 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
     {
       id: 'manual-scope',
       title: '当前边界',
-      paragraphs: ['当前版本不是生产控制系统，也不会连接真实设备。'],
+      paragraphs: ['当前版本不是生产控制系统，设备通信仅用于连接本项目提供的模拟 PLC 或兼容测试端点。'],
       bullets: [
-        '尚未实现 Modbus TCP、OPC UA 或 PLC Simulator。',
-        '尚未实现实时采集、报警处理、历史趋势存储或配方执行。',
+        '已实现独立 PLC Simulator、Modbus TCP adapter、DeviceManager、设备状态机、自动重连、Tag 模型、TagCache、PollingScheduler、Dashboard 实时监控、Device Tag Monitor、CommandService 和基础写入验证。',
+        'OPC UA 默认使用本地 anonymous / no-security simulator，不代表生产 OPC UA 安全配置。',
         '后续工业能力应通过独立 OpenSpec change 增量实现。'
       ]
     },
     {
       id: 'manual-faq',
       title: '常见问题',
-      paragraphs: ['如果界面只显示占位内容，这是当前基础阶段的预期状态。'],
+      paragraphs: ['如果 Device 页面无法读取数据，先确认 PLC Simulator 已独立启动。'],
       bullets: [
-        '看不到真实设备数据：当前尚未实现设备连接和采集。',
+        '看不到实时数据：运行 yarn simulator:start 后再在 Device 页面 Connect。',
+        'Tag Quality 显示 Bad：检查 Simulator 是否停止或通信是否中断；恢复 Simulator 后 HMI 会按 backoff 自动重连，已进入 Fault 时再手工 Connect。',
         '检查更新提示开发环境：请使用 packaged 应用验证真实更新检查。',
         '版本更新说明为空：请确认 CHANGELOG.md 中存在当前版本区块。'
       ]
@@ -91,7 +93,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'Purpose',
       paragraphs: [
         'Industrial HMI Foundation is an Electron foundation for an industrial HMI desktop application.',
-        'This version focuses on the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
+        'This version adds Modbus TCP / OPC UA verification, Tag acquisition, realtime monitoring, an explicit device state machine, bounded automatic reconnect, alarms, historian, trends, Recipe download, permissions, audit, and CommandService control on top of the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
       ],
       bullets: [
         'Renderer is a restricted UI layer and accesses desktop capabilities only through window.hmi.',
@@ -104,10 +106,11 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'Pages',
       paragraphs: ['The sidebar provides Dashboard, Device, Alarm, Trend, Recipe, Tag Management, and Settings frames.'],
       bullets: [
-        'Dashboard reserves the future plant overview area.',
-        'Device reserves future device connections and protocol adapters.',
-        'Alarm, Trend, Recipe, and Tag Management currently show structural placeholders.',
-        'Settings currently exposes logging and error reporting basics.'
+        'Dashboard shows temperature, level, pressure, RPM, running state, mode, and production count for the simulated mixer.',
+        'Device can connect to the independently started simulated PLC, write target temperature/manual RPM, and execute start/stop and valve controls through CommandService.',
+        'Device Tag Monitor shows Value, Unit, Quality, and Timestamp for the default Tags.',
+        'Alarm, Trend, Recipe, and Audit pages show alarm lifecycle, historical trends, Recipe download, and audit records.',
+        'Settings can select Modbus TCP or OPC UA communication configuration.'
       ]
     },
     {
@@ -126,7 +129,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['The project provides application, communication, and error log categories with a unified error shape.'],
       bullets: [
         'Application logs capture lifecycle and user operation summaries.',
-        'Communication logs are reserved for future industrial protocol summaries.',
+        'Communication logs capture device connect, disconnect, manual reads, writes, polling summaries, timeouts, and communication errors.',
         'Error logs capture IPC, Main, and Renderer top-level errors.',
         'The error shape contains code, message, detail, source, and cause.'
       ]
@@ -144,19 +147,20 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
     {
       id: 'manual-scope',
       title: 'Current Scope',
-      paragraphs: ['This version is not a production control system and does not connect to real devices.'],
+      paragraphs: ['This version is not a production control system. Device communication is intended for the bundled PLC Simulator or a compatible test endpoint.'],
       bullets: [
-        'Modbus TCP, OPC UA, and PLC Simulator are not implemented.',
-        'Realtime collection, alarm processing, historian storage, and recipe execution are not implemented.',
+        'PLC Simulator, Modbus TCP adapter, DeviceManager, explicit device state machine, automatic reconnect, Tag model, TagCache, PollingScheduler, Dashboard realtime monitoring, Device Tag Monitor, CommandService, and basic write verification are implemented.',
+        'OPC UA defaults to a local anonymous / no-security simulator and is not a production OPC UA security profile.',
         'Future industrial capabilities should be added through separate OpenSpec changes.'
       ]
     },
     {
       id: 'manual-faq',
       title: 'FAQ',
-      paragraphs: ['Placeholder content is expected in the current foundation stage.'],
+      paragraphs: ['If Device cannot read data, confirm the PLC Simulator is running independently.'],
       bullets: [
-        'No live device data: device connection and polling are not implemented yet.',
+        'No realtime data: run yarn simulator:start, then use Connect on the Device page.',
+        'Tag Quality shows Bad: check whether the Simulator stopped or communication was interrupted; after the Simulator recovers, HMI reconnects automatically with backoff, and Fault still requires manual Connect.',
         'Development update status: use a packaged app to verify real update checks.',
         'Empty version notes: confirm CHANGELOG.md contains a current version section.'
       ]

@@ -32,14 +32,47 @@ describe('package build config', () => {
   it('builds and uploads artifacts needed by update checks', () => {
     expect(packageJson.build.mac.target).toEqual(expect.arrayContaining(['dmg', 'zip']))
     expect(releaseWorkflow).toContain('branches:\n      - master')
-    expect(releaseWorkflow).toContain('npm ci')
-    expect(releaseWorkflow).toContain('npm run typecheck')
-    expect(releaseWorkflow).toContain('npm run lint')
-    expect(releaseWorkflow).toContain('npm run test')
+    expect(releaseWorkflow).toContain('yarn install --frozen-lockfile')
+    expect(releaseWorkflow).toContain('yarn typecheck')
+    expect(releaseWorkflow).toContain('yarn lint')
+    expect(releaseWorkflow).toContain('yarn test')
+    expect(releaseWorkflow).toContain('node scripts/extract-changelog-release-notes.mjs --check')
     expect(releaseWorkflow).toContain('release/*.dmg')
     expect(releaseWorkflow).toContain('release/*.zip')
     expect(releaseWorkflow).toContain('release/*.yml')
     expect(releaseWorkflow).toContain('release/*.blockmap')
+    expect(releaseWorkflow).toContain('--title "$RELEASE_TAG"')
     expect(releaseWorkflow).not.toContain('npm publish')
+  })
+
+  it('unpacks the SQLite native module from asar packages', () => {
+    expect(packageJson.dependencies).toHaveProperty('better-sqlite3')
+    expect(packageJson.build.asar).toBe(true)
+    expect(packageJson.build.asarUnpack).toEqual(expect.arrayContaining([
+      'node_modules/better-sqlite3/**'
+    ]))
+  })
+
+  it('prepares the next dev version after publishing without creating release loops', () => {
+    expect(releaseWorkflow).toContain('prepare-next-dev-version:')
+    expect(releaseWorkflow).toContain('git ls-remote --exit-code --heads origin dev')
+    expect(releaseWorkflow).toContain('Development branch')
+    expect(releaseWorkflow).toContain('git fetch origin dev:refs/remotes/origin/dev')
+    expect(releaseWorkflow).toContain('git checkout -B dev origin/dev')
+    expect(releaseWorkflow).toContain('node scripts/prepare-next-dev-version.mjs')
+    expect(releaseWorkflow).toContain('--release-date "$(date -u +%F)"')
+    expect(releaseWorkflow).toContain('[skip release] [skip ci]')
+    expect(releaseWorkflow).toContain('git push origin HEAD:dev')
+    expect(releaseWorkflow).not.toContain('git checkout -b dev')
+  })
+
+  it('keeps the release workflow on Yarn and GitHub Releases only', () => {
+    expect(releaseWorkflow).not.toContain('npm ci')
+    expect(releaseWorkflow).not.toContain('npm run')
+    expect(releaseWorkflow).not.toContain('npx ')
+    expect(releaseWorkflow).not.toContain('packages: write')
+    expect(releaseWorkflow).not.toContain('registry-url')
+    expect(releaseWorkflow).not.toContain('npm publish')
+    expect(releaseWorkflow).not.toContain('conventional')
   })
 })

@@ -3,10 +3,12 @@ import { join } from 'node:path'
 
 import { registerIpcHandlers } from './ipc/register'
 import { createMainLogger } from './logging/logger'
+import { createMainRuntime, type MainRuntime } from './runtime'
 import { configureUpdateManager } from './update-manager'
 
 const logger = createMainLogger()
 let mainWindow: BrowserWindow | null = null
+let mainRuntime: MainRuntime | null = null
 
 function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -38,7 +40,25 @@ function createMainWindow(): BrowserWindow {
 }
 
 void app.whenReady().then(() => {
-  registerIpcHandlers(logger)
+  mainRuntime = createMainRuntime(logger, {
+    databasePath: join(app.getPath('userData'), 'industrial-hmi.sqlite')
+  })
+  registerIpcHandlers(
+    logger,
+    undefined,
+    mainRuntime.deviceManager,
+    mainRuntime,
+    mainRuntime.tagIpcPublisher,
+    mainRuntime.commandService,
+    mainRuntime.deviceStateIpcPublisher,
+    mainRuntime,
+    mainRuntime.alarmIpcPublisher,
+    mainRuntime,
+    mainRuntime.trendIpcPublisher,
+    mainRuntime,
+    mainRuntime,
+    mainRuntime
+  )
   logger.write({
     category: 'application',
     level: 'info',
@@ -60,6 +80,11 @@ void app.whenReady().then(() => {
       configureUpdateManager(mainWindow, logger)
     }
   })
+})
+
+app.on('before-quit', () => {
+  mainRuntime?.dispose()
+  mainRuntime = null
 })
 
 app.on('window-all-closed', () => {

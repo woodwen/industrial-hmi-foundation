@@ -23,7 +23,7 @@ The system SHALL use the confirmed default foundation tooling for this change.
 #### Scenario: Electron Vite tooling is used
 - **WHEN** the project tooling is implemented
 - **THEN** the build setup SHALL use `electron-vite` for Main, Preload, and Renderer entry points
-- **AND** project commands SHALL be exposed through npm scripts
+- **AND** project commands SHALL be exposed through Yarn package scripts
 
 #### Scenario: Vitest is used for foundation tests
 - **WHEN** the foundation test structure is implemented
@@ -191,7 +191,7 @@ The system SHALL define repository and completion-readiness rules for finalizing
 
 #### Scenario: Tracked files are explicit
 - **WHEN** maintainers prepare files for commit
-- **THEN** source files, OpenSpec artifacts, project configuration, `package-lock.json`, and `.npmrc` SHALL be eligible for tracking
+- **THEN** source files, OpenSpec artifacts, project configuration, `yarn.lock`, and `.npmrc` SHALL be eligible for tracking
 - **AND** `node_modules/`, `out/`, build outputs, coverage, logs, and system temporary files SHALL remain excluded
 
 #### Scenario: Final validation includes git diff check

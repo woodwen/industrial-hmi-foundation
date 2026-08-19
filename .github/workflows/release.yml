@@ -47,24 +47,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: yarn
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Typecheck
-        run: npm run typecheck
+        run: yarn typecheck
 
       - name: Lint
-        run: npm run lint
+        run: yarn lint
 
       - name: Test
-        run: npm run test -- --reporter=verbose
+        run: yarn test --reporter=verbose
 
       - name: Validate changelog release notes
         run: node scripts/extract-changelog-release-notes.mjs --check
 
       - name: Build renderer and main bundles
-        run: npm run build
+        run: yarn build
 
   build:
     needs:
@@ -95,12 +96,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: yarn
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Build renderer and main bundles
-        run: npm run build
+        run: yarn build
 
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
@@ -109,7 +111,7 @@ jobs:
           sudo apt-get install -y libfuse2t64 || sudo apt-get install -y libfuse2
 
       - name: Package ${{ matrix.platform }}
-        run: npx electron-builder --${{ matrix.builder_target }} --publish never
+        run: yarn electron-builder --${{ matrix.builder_target }} --publish never
         env:
           DEBUG: electron-builder
 
@@ -167,5 +169,61 @@ jobs:
           fi
           gh release create "$RELEASE_TAG" "${files[@]}" \
             --target "$GITHUB_SHA" \
-            --title "Industrial HMI Foundation v$RELEASE_VERSION" \
+            --title "$RELEASE_TAG" \
             --notes-file release-notes.md
+
+  prepare-next-dev-version:
+    needs:
+      - check-version
+      - publish
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify dev branch exists
+        shell: bash
+        run: |
+          if ! git ls-remote --exit-code --heads origin dev >/dev/null; then
+            echo "Development branch 'dev' does not exist; create it before running release." >&2
+            exit 1
+          fi
+
+      - name: Checkout dev
+        shell: bash
+        run: |
+          git fetch origin dev:refs/remotes/origin/dev
+          git checkout -B dev origin/dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prepare next dev version
+        id: next-version
+        run: |
+          node scripts/prepare-next-dev-version.mjs \
+            --released-version "$RELEASED_VERSION" \
+            --release-date "$(date -u +%F)"
+        env:
+          RELEASED_VERSION: ${{ needs.check-version.outputs.version }}
+
+      - name: Commit next dev version
+        if: steps.next-version.outputs.changed == 'true'
+        env:
+          NEXT_VERSION: ${{ steps.next-version.outputs.next_version }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No dev version changes to commit"
+            exit 0
+          fi
+          git commit -m "chore(release): prepare v$NEXT_VERSION [skip release] [skip ci]"
+          git push origin HEAD:dev

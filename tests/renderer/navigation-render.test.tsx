@@ -1,53 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { App } from '../../src/renderer/App'
-import type { HmiApiClient } from '../../src/renderer/application/AppApplicationService'
 import { createRootViewModel } from '../../src/renderer/viewmodels/RootViewModel'
 import { ViewModelProvider } from '../../src/renderer/viewmodels/ViewModelContext'
-import type { AppInfo, HmiResult } from '../../src/shared/hmi-api'
-
-function createApiClientStub(): HmiApiClient {
-  return {
-    getAppInfo: vi.fn<() => Promise<HmiResult<AppInfo>>>().mockResolvedValue({
-      ok: true,
-      data: {
-        name: 'Industrial HMI Foundation',
-        version: '0.1.0',
-        environment: 'development'
-      }
-    }),
-    writeLog: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
-      ok: true,
-      data: undefined
-    }),
-    reportError: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
-      ok: true,
-      data: undefined
-    }),
-    checkForUpdates: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
-      ok: true,
-      data: undefined
-    }),
-    downloadUpdate: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
-      ok: true,
-      data: undefined
-    }),
-    cancelUpdateDownload: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
-      ok: true,
-      data: undefined
-    }),
-    openUpdateDownloadPage: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
-      ok: true,
-      data: undefined
-    }),
-    quitAndInstallUpdate: vi.fn<() => Promise<HmiResult<void>>>().mockResolvedValue({
-      ok: true,
-      data: undefined
-    }),
-    onUpdateEvent: vi.fn(() => () => undefined)
-  }
-}
+import { createApiClientStub, createAuditRecord, createRecipe } from '../support/hmi-api-client-stub'
 
 describe('Renderer navigation rendering', () => {
   it('renders dashboard frame by default', () => {
@@ -55,7 +12,8 @@ describe('Renderer navigation rendering', () => {
     const markup = renderApp(rootViewModel)
 
     expect(markup).toContain('仪表盘')
-    expect(markup).toContain('基础架构阶段尚未配置实时采集')
+    expect(markup).toContain('模拟混料设备实时监控已启用')
+    expect(markup).toContain('Temperature')
   })
 
   it('renders selected device frame after active page changes', () => {
@@ -65,7 +23,159 @@ describe('Renderer navigation rendering', () => {
     const markup = renderApp(rootViewModel)
 
     expect(markup).toContain('设备')
-    expect(markup).toContain('尚未配置设备连接')
+    expect(markup).toContain('模拟 PLC 连接')
+  })
+
+  it('renders real-time alarm rows on the Alarm page', () => {
+    const rootViewModel = createRootViewModel(createApiClientStub())
+    rootViewModel.alarm.applyAlarmEvent({
+      occurrences: [{
+        id: 'alarm-temp-high-1787011200000',
+        definitionId: 'alarm-temp-high',
+        code: 'TEMP_HIGH',
+        tagId: 'currentTemperature',
+        level: 'High',
+        message: 'Temperature is too high',
+        status: 'Active',
+        triggerTime: '2026-08-18T00:00:00.000Z',
+        triggerValue: 82,
+        conditionActive: true,
+        updatedAt: '2026-08-18T00:00:00.000Z'
+      }],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })
+    rootViewModel.app.navigate('alarm')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('Real-time Alarm')
+    expect(markup).toContain('Temperature is too high')
+    expect(markup).toContain('currentTemperature')
+  })
+
+  it('renders real-time trend data on the Trend page', () => {
+    const rootViewModel = createRootViewModel(createApiClientStub())
+    rootViewModel.trend.applyRealtimeTrendEvent({
+      points: [{
+        tagId: 'currentTemperature',
+        timestamp: '2026-08-18T00:00:00.000Z',
+        value: 26,
+        quality: 'Good'
+      }],
+      emittedAt: '2026-08-18T00:00:00.000Z'
+    })
+    rootViewModel.app.navigate('trend')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('Real-time Trend')
+    expect(markup).toContain('Trend chart')
+    expect(markup).toContain('Data Available')
+  })
+
+  it('renders Recipe Management after Recipe ViewModel initialization', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      listRecipes: async () => ({
+        ok: true,
+        data: {
+          recipes: [createRecipe()],
+          emittedAt: '2026-08-18T00:00:00.000Z'
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+    await rootViewModel.recipes.initialize()
+    rootViewModel.app.navigate('recipe')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('Recipe Management')
+    expect(markup).toContain('Standard Mixer Recipe')
+    expect(markup).toContain('Target Temperature')
+  })
+
+  it('renders User Management for Admin users', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      listUsers: async () => ({
+        ok: true,
+        data: {
+          users: [{
+            id: 'user-admin',
+            username: 'admin',
+            displayName: 'Admin',
+            role: 'Admin',
+            enabled: true,
+            createdAt: '2026-08-18T00:00:00.000Z',
+            updatedAt: '2026-08-18T00:00:00.000Z'
+          }],
+          emittedAt: '2026-08-18T00:00:00.000Z'
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+    rootViewModel.app.navigate('user-management')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('用户管理')
+    expect(markup).toContain('Create User')
+    expect(markup).toContain('admin')
+  })
+
+  it('renders Audit Log rows and Recipe Download step summaries', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      queryAuditLog: async () => ({
+        ok: true,
+        data: {
+          rows: [createAuditRecord()],
+          emittedAt: '2026-08-18T00:00:00.000Z'
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+    await rootViewModel.auditLog.query()
+    rootViewModel.app.navigate('audit-log')
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('Audit Log')
+    expect(markup).toContain('Recipe Download')
+    expect(markup).toContain('targetTemperature:Verified')
+    expect(markup).toContain('rpmSetpoint:WriteFailed')
+  })
+
+  it('filters navigation entries from the current permission snapshot', async () => {
+    const rootViewModel = createRootViewModel(createApiClientStub({
+      getCurrentUser: async () => ({
+        ok: true,
+        data: {
+          user: {
+            id: 'user-operator',
+            username: 'operator',
+            displayName: 'Operator',
+            role: 'Operator',
+            enabled: true,
+            createdAt: '2026-08-18T00:00:00.000Z',
+            updatedAt: '2026-08-18T00:00:00.000Z'
+          },
+          permissions: [
+            'device:view',
+            'device:start-stop',
+            'alarm:acknowledge',
+            'recipe:read'
+          ],
+          requiresInitialization: false
+        }
+      })
+    }))
+    await rootViewModel.auth.initialize()
+
+    const markup = renderApp(rootViewModel)
+
+    expect(markup).toContain('配方')
+    expect(markup).not.toContain('用户管理')
+    expect(markup).not.toContain('审计日志')
+    expect(markup).not.toContain('标签管理')
   })
 })
 
