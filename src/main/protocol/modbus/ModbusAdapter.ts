@@ -4,6 +4,7 @@ import type { Logger } from '../../logging/logger'
 import { createDeviceError, DEVICE_ERROR_CODES } from '../errors'
 import type {
   IProtocolAdapter,
+  ModbusTcpConnectionConfig,
   ProtocolAdapterStatus,
   ProtocolConnectionConfig,
   ProtocolConnectionStatus,
@@ -17,7 +18,7 @@ import { ModbusClientError, ModbusTcpClient } from './modbus-client'
 export class ModbusAdapter implements IProtocolAdapter {
   private client = new ModbusTcpClient()
   private connectionStatus: ProtocolConnectionStatus = 'Disconnected'
-  private config: ProtocolConnectionConfig | null = null
+  private config: ModbusTcpConnectionConfig | null = null
   private lastSuccessfulAt: string | undefined
   private lastError: AppErrorShape | undefined
 
@@ -41,8 +42,21 @@ export class ModbusAdapter implements IProtocolAdapter {
     }
   }
 
+  getCapabilities() {
+    return {
+      protocol: 'modbusTcp',
+      preferredAcquisition: 'polling',
+      supportsPolling: true,
+      supportsSubscription: false,
+      supportsBatchRead: true,
+      supportsWrite: true,
+      supportsReadBack: true,
+      requestTimeoutMs: this.config?.requestTimeoutMs ?? 2000
+    } as const
+  }
+
   async connect(config: ProtocolConnectionConfig): Promise<void> {
-    this.config = config
+    this.config = requireModbusConfig(config)
     this.connectionStatus = 'Connecting'
     this.lastError = undefined
     const startedAt = Date.now()
@@ -56,7 +70,7 @@ export class ModbusAdapter implements IProtocolAdapter {
     })
 
     try {
-      await this.client.connect(config, config.connectTimeoutMs)
+      await this.client.connect(this.config, this.config.connectTimeoutMs)
       this.connectionStatus = 'Connected'
       this.lastSuccessfulAt = new Date().toISOString()
       this.logSuccess('Connected Modbus TCP device', 'connect', Date.now() - startedAt)
@@ -104,6 +118,7 @@ export class ModbusAdapter implements IProtocolAdapter {
       this.logSuccess('Read Modbus TCP values', 'read', Date.now() - startedAt, request, 'debug')
 
       return {
+        binding: request.binding,
         area: request.area,
         address: request.address,
         quantity: request.quantity,
@@ -143,6 +158,7 @@ export class ModbusAdapter implements IProtocolAdapter {
       this.logSuccess('Wrote Modbus TCP values', 'write', Date.now() - startedAt, request)
 
       return {
+        binding: request.binding,
         area: request.area,
         address: request.address,
         quantity: request.values.length
@@ -160,6 +176,7 @@ export class ModbusAdapter implements IProtocolAdapter {
     const config = this.config
     return {
       connectionStatus: this.connectionStatus,
+      protocol: 'modbusTcp',
       endpoint: config ? `${config.host}:${config.port}` : undefined,
       unitId: config?.unitId,
       lastSuccessfulAt: this.lastSuccessfulAt,
@@ -187,7 +204,7 @@ export class ModbusAdapter implements IProtocolAdapter {
     )
   }
 
-  private requireConfig(): ProtocolConnectionConfig {
+  private requireConfig(): ModbusTcpConnectionConfig {
     if (!this.config) {
       throw createDeviceError(
         DEVICE_ERROR_CODES.notConnected,
@@ -328,6 +345,21 @@ export class ModbusAdapter implements IProtocolAdapter {
       unitId: config?.unitId ?? null,
       ...context
     }
+  }
+}
+
+function requireModbusConfig(config: ProtocolConnectionConfig): ModbusTcpConnectionConfig {
+  if (config.protocol === 'opcUa') {
+    throw createDeviceError(
+      DEVICE_ERROR_CODES.configurationInvalid,
+      'ModbusAdapter requires a Modbus TCP configuration.',
+      'main:protocol:modbus'
+    )
+  }
+
+  return {
+    ...config,
+    protocol: 'modbusTcp'
   }
 }
 

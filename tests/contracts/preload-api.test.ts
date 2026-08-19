@@ -18,6 +18,7 @@ import type {
   CurrentUserSnapshot,
   DeviceCommandRequest,
   DeviceCommandResult,
+  DeviceConfigUpdateRequest,
   DeviceReadRequest,
   DeviceReadResponse,
   DeviceStateChangedEvent,
@@ -113,6 +114,8 @@ describe('Preload HMI API contract', () => {
     expectTypeOf<HmiApi['devices']['connect']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
     expectTypeOf<HmiApi['devices']['disconnect']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
     expectTypeOf<HmiApi['devices']['getStatus']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
+    expectTypeOf<HmiApi['devices']['updateConfig']>().parameters.toEqualTypeOf<[DeviceConfigUpdateRequest]>()
+    expectTypeOf<HmiApi['devices']['updateConfig']>().returns.toEqualTypeOf<Promise<HmiResult<DeviceStatus>>>()
     expectTypeOf<HmiApi['devices']['subscribeState']>().parameters.toEqualTypeOf<[DeviceStateListener]>()
     expectTypeOf<HmiApi['devices']['subscribeState']>().returns.toEqualTypeOf<() => void>()
     expectTypeOf<HmiApi['devices']['readRegisters']>().parameters.toEqualTypeOf<[DeviceReadRequest]>()
@@ -175,10 +178,18 @@ describe('Preload HMI API contract', () => {
     const commandRequest: DeviceCommandRequest = {
       commandId: 'start'
     }
+    const configRequest: DeviceConfigUpdateRequest = {
+      deviceId: 'simulated-mixer-plc',
+      connection: {
+        protocol: 'opcUa',
+        endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+      }
+    }
 
     await hmiApi.devices.connect()
     await hmiApi.devices.disconnect()
     await hmiApi.devices.getStatus()
+    await hmiApi.devices.updateConfig(configRequest)
     await hmiApi.devices.readRegisters(readRequest)
     await hmiApi.devices.writeRegisters(writeRequest)
     await hmiApi.commands.execute(commandRequest)
@@ -186,6 +197,7 @@ describe('Preload HMI API contract', () => {
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.connect)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.disconnect)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.getStatus)
+    expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.updateConfig, configRequest)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.readRegisters, readRequest)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.devices.writeRegisters, writeRequest)
     expect(electronMocks.ipcRenderer.invoke).toHaveBeenCalledWith(IPC_CHANNELS.commands.execute, commandRequest)

@@ -244,6 +244,48 @@ describe('CommandService', () => {
     })
     expect(manager.getDeviceStatus().connectionStatus).toBe('Reconnecting')
   })
+
+  it('uses OPC UA bindings for setpoint commands when the device protocol is OPC UA', async () => {
+    const adapter = new FakeProtocolAdapter()
+    const gate = new DeviceOperationGate()
+    const logger = createLogger()
+    const manager = new DeviceManager({
+      adapter,
+      logger,
+      operationGate: gate,
+      connectionConfig: {
+        deviceId: SIMULATED_MIXER_DEVICE_ID,
+        protocol: 'opcUa',
+        endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator',
+        securityMode: 'None',
+        securityPolicy: 'None',
+        anonymous: true,
+        connectTimeoutMs: 500,
+        requestTimeoutMs: 500
+      },
+      reconnectBackoffMs: [10000]
+    })
+    await manager.connectDevice()
+    const service = new CommandService({
+      adapter,
+      deviceManager: manager,
+      operationGate: gate,
+      logger
+    })
+
+    const result = await service.executeCommand({
+      commandId: 'setTargetTemperature',
+      value: 62.5
+    })
+
+    expect(result.status).toBe('succeeded')
+    expect(adapter.writeRequests[0]).toMatchObject({
+      binding: {
+        protocol: 'opcUa',
+        nodeId: 'ns=1;s=Setpoint'
+      }
+    })
+  })
 })
 
 async function createConnectedService(now?: () => number): Promise<{
@@ -302,6 +344,10 @@ class FakeProtocolAdapter implements IProtocolAdapter {
   ])
   private status: ProtocolAdapterStatus = {
     connectionStatus: 'Disconnected'
+  }
+
+  getCapabilities() {
+    return createModbusCapabilities()
   }
 
   async connect(config: ProtocolConnectionConfig): Promise<void> {
@@ -376,6 +422,19 @@ class FakeProtocolAdapter implements IProtocolAdapter {
   getStatus(): ProtocolAdapterStatus {
     return this.status
   }
+}
+
+function createModbusCapabilities() {
+  return {
+    protocol: 'modbusTcp',
+    preferredAcquisition: 'polling',
+    supportsPolling: true,
+    supportsSubscription: false,
+    supportsBatchRead: true,
+    supportsWrite: true,
+    supportsReadBack: true,
+    requestTimeoutMs: 500
+  } as const
 }
 
 function readValues(

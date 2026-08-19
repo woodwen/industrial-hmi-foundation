@@ -2,6 +2,7 @@ import type { AppErrorShape } from '../../shared/app-error'
 import { UNKNOWN_ERROR_CODE, toAppError } from '../../shared/app-error'
 import type {
   DeviceConnectionStatus,
+  DeviceConfigUpdateRequest,
   DevicePointValue,
   DeviceReadRequest,
   DeviceReadResponse,
@@ -27,8 +28,9 @@ import {
   type ModbusRawValue
 } from '../../shared/modbus'
 import type { Logger } from '../logging/logger'
+import { DEFAULT_OPCUA_ENDPOINT_URL, createProtocolBinding } from '../protocol/bindings'
 import { createDeviceError, DEVICE_ERROR_CODES } from '../protocol/errors'
-import { ModbusAdapter } from '../protocol/modbus/ModbusAdapter'
+import { createProtocolAdapter, getProtocolKind } from '../protocol/factory'
 import type {
   IProtocolAdapter,
   ProtocolConnectionConfig,
@@ -39,6 +41,7 @@ import { transitionDeviceState, type DeviceStateEvent } from './state-machine'
 
 export const DEFAULT_SIMULATED_DEVICE_CONFIG: ProtocolConnectionConfig = {
   deviceId: SIMULATED_MIXER_DEVICE_ID,
+  protocol: 'modbusTcp',
   host: DEFAULT_SIMULATOR_HOST,
   port: DEFAULT_SIMULATOR_PORT,
   unitId: DEFAULT_SIMULATOR_UNIT_ID,
@@ -60,7 +63,8 @@ export interface DeviceLifecycleCallbacks {
 }
 
 export interface DeviceManagerDependencies {
-  adapter: IProtocolAdapter
+  adapter?: IProtocolAdapter
+  adapterFactory?: (config: ProtocolConnectionConfig) => IProtocolAdapter
   logger: Logger
   connectionConfig?: ProtocolConnectionConfig
   operationGate?: DeviceOperationGate
@@ -70,6 +74,8 @@ export interface DeviceManagerDependencies {
 }
 
 export class DeviceManager {
+  private adapter: IProtocolAdapter
+  private connectionConfig: ProtocolConnectionConfig
   private connectionStatus: DeviceConnectionStatus = 'Disconnected'
   private lastTransitionAt: string | undefined
   private transitionReason: string | undefined
@@ -81,7 +87,10 @@ export class DeviceManager {
   private lastReconnectFailureLoggedAt = 0
   private lifecycleGeneration = 0
 
-  constructor(private readonly dependencies: DeviceManagerDependencies) {}
+  constructor(private readonly dependencies: DeviceManagerDependencies) {
+    this.connectionConfig = dependencies.connectionConfig ?? DEFAULT_SIMULATED_DEVICE_CONFIG
+    this.adapter = dependencies.adapter ?? this.createAdapter(this.connectionConfig)
+  }
 
   async connectDevice(): Promise<DeviceStatus> {
     const transitioned = this.applyTransition(
@@ -96,7 +105,7 @@ export class DeviceManager {
     const generation = this.nextLifecycleGeneration()
 
     try {
-      await this.dependencies.adapter.connect(this.getConnectionConfig())
+      await this.adapter.connect(this.getConnectionConfig())
       if (!this.isLifecycleCurrent(generation, 'Connecting')) {
         await this.disconnectAdapterSafely('stale-connect-success')
         return this.getDeviceStatus()
@@ -135,6 +144,59 @@ export class DeviceManager {
 
   getDeviceStatus(): DeviceStatus {
     return this.toDeviceStatus()
+  }
+
+  getProtocolAdapter(): IProtocolAdapter {
+    return this.adapter
+  }
+
+  async updateDeviceConfig(request: DeviceConfigUpdateRequest): Promise<DeviceStatus> {
+    if (request.deviceId !== SIMULATED_MIXER_DEVICE_ID) {
+      throw createDeviceError(
+        DEVICE_ERROR_CODES.configurationInvalid,
+        'Device configuration target is not supported.',
+        'main:device-manager',
+        `deviceId=${request.deviceId}`
+      )
+    }
+
+    if (this.connectionStatus === 'Connecting' || this.connectionStatus === 'Reconnecting') {
+      throw createDeviceError(
+        DEVICE_ERROR_CODES.commandBusy,
+        'Device communication is busy.',
+        'main:device-manager',
+        `state=${this.connectionStatus}`
+      )
+    }
+
+    if (this.connectionStatus === 'Connected') {
+      await this.disconnectDevice()
+    }
+
+    this.nextLifecycleGeneration()
+    this.cancelReconnect()
+    await this.disconnectAdapterSafely('configuration-change')
+
+    this.connectionConfig = toProtocolConnectionConfig(request)
+    this.adapter = this.createAdapter(this.connectionConfig)
+    this.lastError = undefined
+    this.connectionStatus = 'Disconnected'
+    this.transitionReason = 'configuration-change'
+    this.lastTransitionAt = this.dependencies.now?.() ?? new Date().toISOString()
+    this.emitState()
+
+    this.dependencies.logger.write({
+      category: 'application',
+      level: 'info',
+      message: 'Device protocol configuration changed',
+      source: 'main:device-manager',
+      context: {
+        deviceId: SIMULATED_MIXER_DEVICE_ID,
+        protocol: getProtocolKind(this.connectionConfig)
+      }
+    })
+
+    return this.getDeviceStatus()
   }
 
   subscribeState(listener: DeviceStateListener): () => void {
@@ -190,7 +252,8 @@ export class DeviceManager {
 
       for (const pointId of pointIds) {
         const point = getModbusPoint(pointId)
-        const result = await this.dependencies.adapter.read({
+        const result = await this.adapter.read({
+          binding: createProtocolBinding(getProtocolKind(this.getConnectionConfig()), point.id as ModbusPointId, 1000),
           area: point.area,
           address: point.pduAddress,
           quantity: point.quantity
@@ -233,14 +296,16 @@ export class DeviceManager {
       }
 
       const rawValues = encodeWritablePoint(point, request.value)
-      await this.dependencies.adapter.write({
+      await this.adapter.write({
+        binding: createProtocolBinding(getProtocolKind(this.getConnectionConfig()), point.id as ModbusPointId, 1000),
         area: point.area,
         address: point.pduAddress,
         values: rawValues
       })
 
       const timestamp = new Date().toISOString()
-      const readBack = await this.dependencies.adapter.read({
+      const readBack = await this.adapter.read({
+        binding: createProtocolBinding(getProtocolKind(this.getConnectionConfig()), point.id as ModbusPointId, 1000),
         area: point.area,
         address: point.pduAddress,
         quantity: point.quantity
@@ -309,7 +374,7 @@ export class DeviceManager {
     this.dependencies.logger.write({
       category: 'communication',
       level: 'info',
-      message: 'Scheduled Modbus device reconnect',
+      message: 'Scheduled device reconnect',
       source: 'main:device-manager',
       context: {
         deviceId: SIMULATED_MIXER_DEVICE_ID,
@@ -327,8 +392,8 @@ export class DeviceManager {
     const generation = this.lifecycleGeneration
     this.reconnectRunning = true
     try {
-      await this.dependencies.adapter.disconnect()
-      await this.dependencies.adapter.connect(this.getConnectionConfig())
+      await this.adapter.disconnect()
+      await this.adapter.connect(this.getConnectionConfig())
       if (!this.isLifecycleCurrent(generation, 'Reconnecting')) {
         await this.disconnectAdapterSafely('stale-reconnect-success')
         return
@@ -384,7 +449,7 @@ export class DeviceManager {
     this.dependencies.logger.write({
       category: 'communication',
       level: 'warn',
-      message: 'Modbus device reconnect attempt failed',
+      message: 'Device reconnect attempt failed',
       source: 'main:device-manager',
       context: {
         deviceId: SIMULATED_MIXER_DEVICE_ID,
@@ -396,7 +461,11 @@ export class DeviceManager {
   }
 
   private getConnectionConfig(): ProtocolConnectionConfig {
-    return this.dependencies.connectionConfig ?? DEFAULT_SIMULATED_DEVICE_CONFIG
+    return this.connectionConfig
+  }
+
+  private createAdapter(config: ProtocolConnectionConfig): IProtocolAdapter {
+    return this.dependencies.adapterFactory?.(config) ?? createProtocolAdapter(config, this.dependencies.logger)
   }
 
   private applyTransition(event: DeviceStateEvent, reason: string, error?: AppErrorShape): boolean {
@@ -454,7 +523,7 @@ export class DeviceManager {
 
   private async disconnectAdapterSafely(reason: string): Promise<void> {
     try {
-      await this.dependencies.adapter.disconnect()
+      await this.adapter.disconnect()
     } catch (error) {
       const appError = toAppError(error, 'main:device-manager')
       this.dependencies.logger.write({
@@ -484,18 +553,23 @@ export class DeviceManager {
   }
 
   private toDeviceStatus(): DeviceStatus {
-    const adapterStatus = this.dependencies.adapter.getStatus()
+    const adapterStatus = this.adapter.getStatus()
     const connectionConfig = this.getConnectionConfig()
+    const protocol = getProtocolKind(connectionConfig)
     return {
       deviceId: SIMULATED_MIXER_DEVICE_ID,
       name: DEFAULT_DEVICE_NAME,
-      protocol: 'modbusTcp',
+      protocol,
       connectionStatus: this.connectionStatus,
-      endpoint: {
-        host: connectionConfig.host,
-        port: connectionConfig.port,
-        unitId: adapterStatus.unitId ?? connectionConfig.unitId
-      },
+      endpoint: protocol === 'opcUa'
+        ? {
+            endpointUrl: connectionConfig.endpointUrl
+          }
+        : {
+            host: connectionConfig.host,
+            port: connectionConfig.port,
+            unitId: adapterStatus.unitId ?? connectionConfig.unitId
+          },
       lastTransitionAt: this.lastTransitionAt,
       transitionReason: this.transitionReason,
       lastSuccessfulAt: adapterStatus.lastSuccessfulAt,
@@ -506,8 +580,8 @@ export class DeviceManager {
 
 export function createDefaultDeviceManager(logger: Logger): DeviceManager {
   return new DeviceManager({
-    adapter: new ModbusAdapter(logger),
     logger,
+    adapterFactory: (config) => createProtocolAdapter(config, logger),
     operationGate: new DeviceOperationGate()
   })
 }
@@ -568,6 +642,7 @@ function isLifecycleCommunicationError(error: AppErrorShape): boolean {
     error.code === DEVICE_ERROR_CODES.connectionFailed ||
     error.code === DEVICE_ERROR_CODES.notConnected ||
     error.code === DEVICE_ERROR_CODES.requestTimeout ||
+    error.code === DEVICE_ERROR_CODES.configurationInvalid ||
     error.code === DEVICE_ERROR_CODES.protocolError ||
     error.code === UNKNOWN_ERROR_CODE
 }
@@ -575,6 +650,32 @@ function isLifecycleCommunicationError(error: AppErrorShape): boolean {
 function isUnrecoverableReconnectError(error: AppErrorShape): boolean {
   return error.code === DEVICE_ERROR_CODES.illegalAddress ||
     error.code === DEVICE_ERROR_CODES.writeRejected ||
+    error.code === DEVICE_ERROR_CODES.configurationInvalid ||
     error.code === DEVICE_ERROR_CODES.commandRejected ||
     error.code === DEVICE_ERROR_CODES.commandBusy
+}
+
+function toProtocolConnectionConfig(request: DeviceConfigUpdateRequest): ProtocolConnectionConfig {
+  if (request.connection.protocol === 'opcUa') {
+    return {
+      deviceId: SIMULATED_MIXER_DEVICE_ID,
+      protocol: 'opcUa',
+      endpointUrl: request.connection.endpointUrl || DEFAULT_OPCUA_ENDPOINT_URL,
+      securityMode: 'None',
+      securityPolicy: 'None',
+      anonymous: true,
+      connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
+      requestTimeoutMs: DEFAULT_REQUEST_TIMEOUT_MS
+    }
+  }
+
+  return {
+    deviceId: SIMULATED_MIXER_DEVICE_ID,
+    protocol: 'modbusTcp',
+    host: request.connection.host,
+    port: request.connection.port,
+    unitId: request.connection.unitId,
+    connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
+    requestTimeoutMs: DEFAULT_REQUEST_TIMEOUT_MS
+  }
 }

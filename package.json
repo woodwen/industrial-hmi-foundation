@@ -27,6 +27,9 @@
     "smoke:start": "node scripts/smoke-start.mjs",
     "simulator:build": "tsc -p tsconfig.simulator.json",
     "simulator:start": "yarn simulator:build && node out/simulator/simulator/index.js",
+    "simulator:opcua:start": "yarn simulator:build && node out/simulator/simulator/opcua-index.js",
+    "perf:profile": "node scripts/run-performance-profile.mjs",
+    "longrun:smoke": "node scripts/run-long-run-smoke.mjs",
     "simulator:dev": "yarn simulator:start"
   },
   "dependencies": {
@@ -35,6 +38,7 @@
     "electron-updater": "^6.8.9",
     "mobx": "^6.13.5",
     "mobx-react-lite": "^4.0.7",
+    "node-opcua": "^2.177.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -56,6 +60,9 @@
     "typescript-eslint": "^8.12.2",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
+  },
+  "resolutions": {
+    "hexy": "0.3.5"
   },
   "build": {
     "appId": "com.industrialhmi.foundation",

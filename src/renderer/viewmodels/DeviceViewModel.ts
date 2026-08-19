@@ -5,11 +5,14 @@ import type {
   DeviceCommandId,
   DeviceCommandRequest,
   DeviceCommandResult,
+  DeviceConfigUpdateRequest,
   DevicePointValue,
+  DeviceProtocolKind,
   DeviceStateChangedEvent,
   DeviceStatus,
   Unsubscribe
 } from '../../shared/hmi-api'
+import { DEFAULT_OPCUA_SIMULATOR_ENDPOINT_URL } from '../../shared/hmi-api'
 import {
   DEFAULT_PROCESS_READ_POINT_IDS,
   DEFAULT_SIMULATOR_HOST,
@@ -85,11 +88,17 @@ export class DeviceViewModel {
   isDisconnecting = false
   isRefreshingStatus = false
   isReading = false
+  isUpdatingConfig = false
   activeCommandId: DeviceCommandId | null = null
   writingPointId: ModbusPointId | null = null
   lastCommandResult: DeviceCommandResult | null = null
   error: AppErrorShape | null = null
   operationMessageKey: MessageKey | null = null
+  selectedProtocol: DeviceProtocolKind = 'modbusTcp'
+  modbusHostInput = DEFAULT_SIMULATOR_HOST
+  modbusPortInput = String(DEFAULT_SIMULATOR_PORT)
+  modbusUnitIdInput = String(DEFAULT_SIMULATOR_UNIT_ID)
+  opcUaEndpointInput = DEFAULT_OPCUA_SIMULATOR_ENDPOINT_URL
   targetTemperatureInput = '60.0'
   manualMotorRpmInput = '0'
   private stateUnsubscribe: Unsubscribe | null = null
@@ -157,6 +166,7 @@ export class DeviceViewModel {
       this.isDisconnecting ||
       this.isRefreshingStatus ||
       this.isReading ||
+      this.isUpdatingConfig ||
       this.isCommandPending
   }
 
@@ -177,7 +187,19 @@ export class DeviceViewModel {
   }
 
   get endpointLabel(): string {
-    return `${this.status.endpoint.host}:${this.status.endpoint.port} / Unit ${this.status.endpoint.unitId}`
+    if (this.status.protocol === 'opcUa') {
+      return this.status.endpoint.endpointUrl ?? this.opcUaEndpointInput
+    }
+
+    return `${this.status.endpoint.host ?? '-'}:${this.status.endpoint.port ?? '-'} / Unit ${this.status.endpoint.unitId ?? '-'}`
+  }
+
+  get protocolLabel(): string {
+    return this.status.protocol === 'opcUa' ? 'OPC UA' : 'Modbus TCP'
+  }
+
+  get canUpdateConfig(): boolean {
+    return !this.isBusy
   }
 
   get statusErrorMessage(): string | null {
@@ -277,6 +299,33 @@ export class DeviceViewModel {
       await this.refreshStatusSilently()
     } finally {
       this.isRefreshingStatus = false
+    }
+  }
+
+  async updateProtocolConfig(): Promise<void> {
+    this.isUpdatingConfig = true
+    this.clearOperationState()
+
+    try {
+      const request = this.createConfigUpdateRequest()
+      if (!request) {
+        return
+      }
+
+      const result = await this.appService.updateDeviceConfig(request)
+      if (!result.ok) {
+        await this.handleDeviceError(result.error)
+        return
+      }
+
+      this.values.clear()
+      this.status = result.data
+      this.syncConfigInputsFromStatus(result.data)
+      this.operationMessageKey = 'device.operation.configUpdated'
+    } catch (error) {
+      await this.handleDeviceError(toAppError(error, 'renderer:device-config'))
+    } finally {
+      this.isUpdatingConfig = false
     }
   }
 
@@ -388,8 +437,29 @@ export class DeviceViewModel {
     this.manualMotorRpmInput = value
   }
 
+  setSelectedProtocol(protocol: DeviceProtocolKind): void {
+    this.selectedProtocol = protocol
+  }
+
+  setModbusHostInput(value: string): void {
+    this.modbusHostInput = value
+  }
+
+  setModbusPortInput(value: string): void {
+    this.modbusPortInput = value
+  }
+
+  setModbusUnitIdInput(value: string): void {
+    this.modbusUnitIdInput = value
+  }
+
+  setOpcUaEndpointInput(value: string): void {
+    this.opcUaEndpointInput = value
+  }
+
   applyDeviceStateEvent(event: DeviceStateChangedEvent): void {
     this.status = event
+    this.syncConfigInputsFromStatus(event)
   }
 
   private async executeCommand(request: DeviceCommandRequest): Promise<void> {
@@ -506,6 +576,7 @@ export class DeviceViewModel {
       const result = await this.appService.getDeviceStatus()
       if (result.ok) {
         this.status = result.data
+        this.syncConfigInputsFromStatus(result.data)
         return
       }
 
@@ -513,6 +584,77 @@ export class DeviceViewModel {
     } catch (error) {
       this.error = toAppError(error, 'renderer:device-status')
     }
+  }
+
+  private createConfigUpdateRequest(): DeviceConfigUpdateRequest | null {
+    if (this.selectedProtocol === 'opcUa') {
+      const endpointUrl = this.opcUaEndpointInput.trim()
+      if (!endpointUrl) {
+        this.error = createAppError({
+          code: 'DEVICE_INVALID_INPUT',
+          message: 'OPC UA endpoint URL is required.',
+          source: 'renderer:device-config'
+        })
+        return null
+      }
+
+      return {
+        deviceId: this.status.deviceId,
+        connection: {
+          protocol: 'opcUa',
+          endpointUrl
+        }
+      }
+    }
+
+    const host = this.modbusHostInput.trim()
+    const port = this.parsePositiveIntegerInput(this.modbusPortInput, 'Modbus port')
+    const unitId = this.parsePositiveIntegerInput(this.modbusUnitIdInput, 'Modbus unitId')
+
+    if (!host || port === null || unitId === null) {
+      this.error = createAppError({
+        code: 'DEVICE_INVALID_INPUT',
+        message: 'Modbus TCP host, port, and unitId are required.',
+        source: 'renderer:device-config'
+      })
+      return null
+    }
+
+    return {
+      deviceId: this.status.deviceId,
+      connection: {
+        protocol: 'modbusTcp',
+        host,
+        port,
+        unitId
+      }
+    }
+  }
+
+  private parsePositiveIntegerInput(input: string, label: string): number | null {
+    const value = Number(input)
+    if (Number.isInteger(value) && value > 0) {
+      return value
+    }
+
+    this.error = createAppError({
+      code: 'DEVICE_INVALID_INPUT',
+      message: `${label} must be a positive integer.`,
+      source: 'renderer:device-config'
+    })
+    return null
+  }
+
+  private syncConfigInputsFromStatus(status: DeviceStatus): void {
+    this.selectedProtocol = status.protocol
+    if (status.protocol === 'opcUa') {
+      this.opcUaEndpointInput = status.endpoint.endpointUrl ?? DEFAULT_OPCUA_SIMULATOR_ENDPOINT_URL
+      return
+    }
+
+    this.modbusHostInput = status.endpoint.host ?? DEFAULT_SIMULATOR_HOST
+    this.modbusPortInput = String(status.endpoint.port ?? DEFAULT_SIMULATOR_PORT)
+    this.modbusUnitIdInput = String(status.endpoint.unitId ?? DEFAULT_SIMULATOR_UNIT_ID)
   }
 }
 

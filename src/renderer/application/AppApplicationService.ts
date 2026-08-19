@@ -14,6 +14,7 @@ import type {
   CurrentUserSnapshot,
   DeviceCommandRequest,
   DeviceCommandResult,
+  DeviceConfigUpdateRequest,
   DeviceReadRequest,
   DeviceReadResponse,
   DeviceStateListener,
@@ -59,6 +60,7 @@ export interface HmiApiClient {
   connectDevice(): Promise<HmiResult<DeviceStatus>>
   disconnectDevice(): Promise<HmiResult<DeviceStatus>>
   getDeviceStatus(): Promise<HmiResult<DeviceStatus>>
+  updateDeviceConfig(request: DeviceConfigUpdateRequest): Promise<HmiResult<DeviceStatus>>
   subscribeDeviceState(listener: DeviceStateListener): Unsubscribe
   readDeviceRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>
@@ -146,6 +148,10 @@ export class AppApplicationService {
 
   getDeviceStatus(): Promise<HmiResult<DeviceStatus>> {
     return this.apiClient.getDeviceStatus()
+  }
+
+  updateDeviceConfig(request: DeviceConfigUpdateRequest): Promise<HmiResult<DeviceStatus>> {
+    return this.apiClient.updateDeviceConfig(request)
   }
 
   subscribeDeviceState(listener: DeviceStateListener): Unsubscribe {

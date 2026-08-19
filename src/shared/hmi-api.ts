@@ -145,16 +145,39 @@ export type DeviceConnectionStatus =
   | 'Reconnecting'
   | 'Fault'
 
+export const DEFAULT_OPCUA_SIMULATOR_ENDPOINT_URL = 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+export type DeviceProtocolKind = 'modbusTcp' | 'opcUa'
+
 export interface DeviceEndpoint {
+  host?: string
+  port?: number
+  unitId?: number
+  endpointUrl?: string
+}
+
+export interface ModbusTcpDeviceConnectionInput {
+  protocol: 'modbusTcp'
   host: string
   port: number
   unitId: number
 }
 
+export interface OpcUaDeviceConnectionInput {
+  protocol: 'opcUa'
+  endpointUrl: string
+}
+
+export type DeviceConnectionInput = ModbusTcpDeviceConnectionInput | OpcUaDeviceConnectionInput
+
+export interface DeviceConfigUpdateRequest {
+  deviceId: string
+  connection: DeviceConnectionInput
+}
+
 export interface DeviceStatus {
   deviceId: string
   name: string
-  protocol: 'modbusTcp'
+  protocol: DeviceProtocolKind
   connectionStatus: DeviceConnectionStatus
   endpoint: DeviceEndpoint
   lastTransitionAt?: string
@@ -284,6 +307,7 @@ export interface HmiApi {
     connect(): Promise<HmiResult<DeviceStatus>>
     disconnect(): Promise<HmiResult<DeviceStatus>>
     getStatus(): Promise<HmiResult<DeviceStatus>>
+    updateConfig(request: DeviceConfigUpdateRequest): Promise<HmiResult<DeviceStatus>>
     subscribeState(listener: DeviceStateListener): Unsubscribe
     readRegisters(request: DeviceReadRequest): Promise<HmiResult<DeviceReadResponse>>
     writeRegisters(request: DeviceWriteRequest): Promise<HmiResult<DeviceWriteResponse>>

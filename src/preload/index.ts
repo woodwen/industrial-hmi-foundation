@@ -10,6 +10,7 @@ import type {
   CreateFirstAdminRequest,
   CreateUserRequest,
   DeviceCommandRequest,
+  DeviceConfigUpdateRequest,
   DeviceReadRequest,
   DeviceStateChangedEvent,
   DeviceStateListener,
@@ -66,6 +67,10 @@ const hmiApi: HmiApi = {
     connect: () => ipcRenderer.invoke(IPC_CHANNELS.devices.connect),
     disconnect: () => ipcRenderer.invoke(IPC_CHANNELS.devices.disconnect),
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.devices.getStatus),
+    updateConfig: (request: DeviceConfigUpdateRequest) => ipcRenderer.invoke(
+      IPC_CHANNELS.devices.updateConfig,
+      request
+    ),
     subscribeState: (listener: DeviceStateListener) => {
       const wrappedListener = (_event: IpcRendererEvent, stateEvent: DeviceStateChangedEvent): void => {
         listener(stateEvent)

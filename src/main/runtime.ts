@@ -44,13 +44,16 @@ import { DeviceStateIpcPublisher } from './ipc/device-state-publisher'
 import { TagIpcPublisher } from './ipc/tag-publisher'
 import { TrendIpcPublisher } from './ipc/trend-publisher'
 import type { Logger } from './logging/logger'
-import { ModbusAdapter } from './protocol/modbus/ModbusAdapter'
+import { DEFAULT_OPCUA_ENDPOINT_URL } from './protocol/bindings'
+import { createProtocolAdapter } from './protocol/factory'
+import type { ProtocolConnectionConfig } from './protocol/types'
 import { RecipeDownloadService, RecipeRepository, RecipeService } from './recipe'
 import { PermissionService, UserRepository, UserService } from './security'
-import { PollingScheduler, TagCache, TagService } from './tag'
+import { PollingScheduler, TagAcquisitionCoordinator, TagCache, TagService } from './tag'
 
 export interface MainRuntimeOptions {
   databasePath?: string
+  connectionConfig?: ProtocolConnectionConfig
 }
 
 export interface MainRuntime {
@@ -59,6 +62,7 @@ export interface MainRuntime {
   tagService: TagService
   tagCache: TagCache
   pollingScheduler: PollingScheduler
+  tagAcquisitionCoordinator: TagAcquisitionCoordinator
   historianDatabase: HistorianDatabase
   historianService: HistorianService
   trendService: TrendService
@@ -100,7 +104,7 @@ export interface MainRuntime {
 }
 
 export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = {}): MainRuntime {
-  const adapter = new ModbusAdapter(logger)
+  const connectionConfig = options.connectionConfig ?? getRuntimeConnectionConfig(process.env)
   const operationGate = new DeviceOperationGate()
   const tagService = new TagService(undefined, logger)
   const tagCache = new TagCache(tagService.listTagDefinitions())
@@ -113,35 +117,36 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
   const userRepository = new UserRepository(historianDatabase.db)
   const userService = new UserService(userRepository, permissionService, auditService, undefined, logger)
   const recipeRepository = new RecipeRepository(historianDatabase.db)
-  const pollingSchedulerRef: {
-    current?: PollingScheduler
+  const tagAcquisitionRef: {
+    current?: TagAcquisitionCoordinator
   } = {}
 
   const deviceManager = new DeviceManager({
-    adapter,
     logger,
+    connectionConfig,
+    adapterFactory: (config) => createProtocolAdapter(config, logger),
     operationGate,
     lifecycle: {
       onConnected: (deviceId) => {
-        pollingSchedulerRef.current?.start(deviceId)
+        void tagAcquisitionRef.current?.start(deviceId)
       },
       onReconnecting: (deviceId) => {
-        pollingSchedulerRef.current?.stop(deviceId)
+        void tagAcquisitionRef.current?.stop(deviceId)
         tagCache.markDeviceQuality(deviceId, 'Bad')
       },
       onDisconnected: (deviceId, manual) => {
-        pollingSchedulerRef.current?.stop(deviceId)
+        void tagAcquisitionRef.current?.stop(deviceId)
         tagCache.markDeviceQuality(deviceId, manual ? 'Uncertain' : 'Bad')
       },
       onFault: (deviceId) => {
-        pollingSchedulerRef.current?.stop(deviceId)
+        void tagAcquisitionRef.current?.stop(deviceId)
         tagCache.markDeviceQuality(deviceId, 'Bad')
       }
     }
   })
 
   const pollingScheduler = new PollingScheduler({
-    adapter,
+    adapterProvider: () => deviceManager.getProtocolAdapter(),
     tagService,
     tagCache,
     logger,
@@ -150,10 +155,21 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
       deviceManager.handleCommunicationFailure(error)
     }
   })
-  pollingSchedulerRef.current = pollingScheduler
+  const tagAcquisitionCoordinator = new TagAcquisitionCoordinator({
+    adapterProvider: () => deviceManager.getProtocolAdapter(),
+    pollingScheduler,
+    tagService,
+    tagCache,
+    logger,
+    operationGate,
+    onDeviceCommunicationFailure: (_deviceId, error) => {
+      deviceManager.handleCommunicationFailure(error)
+    }
+  })
+  tagAcquisitionRef.current = tagAcquisitionCoordinator
 
   const commandService = new CommandService({
-    adapter,
+    adapterProvider: () => deviceManager.getProtocolAdapter(),
     deviceManager,
     operationGate,
     logger,
@@ -188,6 +204,7 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
     tagService,
     tagCache,
     pollingScheduler,
+    tagAcquisitionCoordinator,
     historianDatabase,
     historianService,
     trendService,
@@ -238,7 +255,7 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
     getRealtimeTrendSnapshot: (request) => trendService.getSnapshot(request.tagIds),
     queryHistoricalTrend: (query) => trendQueryService.queryHistorical(query),
     dispose: () => {
-      pollingScheduler.dispose()
+      tagAcquisitionCoordinator.dispose()
       tagIpcPublisher.dispose()
       deviceStateIpcPublisher.dispose()
       alarmIpcPublisher.dispose()
@@ -254,6 +271,40 @@ export function createMainRuntime(logger: Logger, options: MainRuntimeOptions = 
       operationGate.dispose()
     }
   }
+}
+
+export function getRuntimeConnectionConfig(env: NodeJS.ProcessEnv): ProtocolConnectionConfig {
+  if (env.HMI_DEVICE_PROTOCOL === 'opcUa') {
+    return {
+      deviceId: SIMULATED_MIXER_DEVICE_ID,
+      protocol: 'opcUa',
+      endpointUrl: env.HMI_OPCUA_ENDPOINT_URL ?? DEFAULT_OPCUA_ENDPOINT_URL,
+      securityMode: 'None',
+      securityPolicy: 'None',
+      anonymous: true,
+      connectTimeoutMs: parsePositiveInteger(env.HMI_CONNECT_TIMEOUT_MS, 3000),
+      requestTimeoutMs: parsePositiveInteger(env.HMI_REQUEST_TIMEOUT_MS, 2000)
+    }
+  }
+
+  return {
+    deviceId: SIMULATED_MIXER_DEVICE_ID,
+    protocol: 'modbusTcp',
+    host: env.HMI_SIMULATOR_HOST ?? '127.0.0.1',
+    port: parsePositiveInteger(env.HMI_SIMULATOR_PORT, 1502),
+    unitId: parsePositiveInteger(env.HMI_SIMULATOR_UNIT_ID, 1),
+    connectTimeoutMs: parsePositiveInteger(env.HMI_CONNECT_TIMEOUT_MS, 3000),
+    requestTimeoutMs: parsePositiveInteger(env.HMI_REQUEST_TIMEOUT_MS, 2000)
+  }
+}
+
+function parsePositiveInteger(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback
+  }
+
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
 function acknowledgeAlarmWithAuthorization(

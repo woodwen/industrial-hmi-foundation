@@ -4,6 +4,7 @@ import { isAlarmLevel, isAlarmStatus, type AlarmHistoryQuery, type AlarmAcknowle
 import type {
   DeviceCommandId,
   DeviceCommandRequest,
+  DeviceConfigUpdateRequest,
   DeviceReadRequest,
   DeviceWriteRequest,
   ErrorReportInput,
@@ -45,6 +46,7 @@ const DEVICE_COMMAND_IDS: readonly DeviceCommandId[] = [
   'setTargetTemperature',
   'setRpmSetpoint'
 ]
+const DEVICE_PROTOCOLS = ['modbusTcp', 'opcUa'] as const
 
 export function parseLogEntryInput(payload: unknown, source: string): LogEntryInput {
   const record = requireRecord(payload, 'Log entry payload must be an object.', source)
@@ -107,6 +109,32 @@ export function parseDeviceCommandRequest(payload: unknown, source: string): Dev
   return {
     commandId,
     value
+  }
+}
+
+export function parseDeviceConfigUpdateRequest(payload: unknown, source: string): DeviceConfigUpdateRequest {
+  const record = requireRecord(payload, 'Device configuration payload must be an object.', source)
+  const connection = requireRecord(record.connection, 'Device connection configuration must be an object.', source)
+  const protocol = requireOneOf(connection.protocol, DEVICE_PROTOCOLS, 'Device protocol is invalid.', source)
+
+  if (protocol === 'opcUa') {
+    return {
+      deviceId: requireNonEmptyString(record.deviceId, 'Device id is required.', source),
+      connection: {
+        protocol,
+        endpointUrl: requireNonEmptyString(connection.endpointUrl, 'OPC UA endpointUrl is required.', source)
+      }
+    }
+  }
+
+  return {
+    deviceId: requireNonEmptyString(record.deviceId, 'Device id is required.', source),
+    connection: {
+      protocol,
+      host: requireNonEmptyString(connection.host, 'Modbus host is required.', source),
+      port: requirePositiveInteger(connection.port, 'Modbus port must be a positive integer.', source),
+      unitId: requirePositiveInteger(connection.unitId, 'Modbus unitId must be a positive integer.', source)
+    }
   }
 }
 
@@ -332,6 +360,14 @@ function parseOptionalPositiveInteger(value: unknown, message: string, source: s
     return undefined
   }
 
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value
+  }
+
+  throwInvalidPayload(message, source)
+}
+
+function requirePositiveInteger(value: unknown, message: string, source: string): number {
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
     return value
   }

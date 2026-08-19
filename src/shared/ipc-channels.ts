@@ -20,6 +20,7 @@ export const IPC_CHANNELS = {
     connect: 'hmi:devices:connect',
     disconnect: 'hmi:devices:disconnect',
     getStatus: 'hmi:devices:get-status',
+    updateConfig: 'hmi:devices:update-config',
     subscribeState: 'hmi:devices:subscribe-state',
     unsubscribeState: 'hmi:devices:unsubscribe-state',
     stateChanged: 'hmi:devices:state-changed',

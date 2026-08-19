@@ -158,6 +158,10 @@ class FakeProtocolAdapter implements IProtocolAdapter {
     connectionStatus: 'Connected'
   }
 
+  getCapabilities() {
+    return createModbusCapabilities()
+  }
+
   async connect(): Promise<void> {
     this.status.connectionStatus = 'Connected'
   }
@@ -217,6 +221,19 @@ class DeferredProtocolAdapter extends FakeProtocolAdapter {
     })
     this.readResolver = null
   }
+}
+
+function createModbusCapabilities() {
+  return {
+    protocol: 'modbusTcp',
+    preferredAcquisition: 'polling',
+    supportsPolling: true,
+    supportsSubscription: false,
+    supportsBatchRead: true,
+    supportsWrite: true,
+    supportsReadBack: true,
+    requestTimeoutMs: 500
+  } as const
 }
 
 function createValues(request: ProtocolReadRequest) {

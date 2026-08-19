@@ -2,11 +2,12 @@ import type { ModbusRawValue } from '../../shared/modbus'
 import {
   DEFAULT_TAG_DEFINITIONS,
   type TagDefinition,
+  type TagQuality,
   type TagValue,
   type TagValueData
 } from '../../shared/tag'
 import type { Logger } from '../logging/logger'
-import type { ProtocolReadResult } from '../protocol/types'
+import type { ProtocolReadResult, ProtocolSubscriptionValue } from '../protocol/types'
 import type { ScanGroup } from './scan-groups'
 
 export class TagService {
@@ -38,6 +39,10 @@ export class TagService {
     return group.tags.map((definition) => this.decodeTagFromGroup(definition, group, result, timestamp))
   }
 
+  decodeSubscriptionValues(values: readonly ProtocolSubscriptionValue[]): TagValue[] {
+    return values.map((value) => this.decodeSubscriptionValue(value))
+  }
+
   createFailureValues(tags: readonly TagDefinition[], timestamp = new Date().toISOString()): TagValue[] {
     return tags.map((definition) => ({
       tagId: definition.id,
@@ -61,7 +66,7 @@ export class TagService {
       return {
         tagId: definition.id,
         value,
-        quality: 'Good',
+        quality: result.quality ?? 'Good',
         timestamp
       }
     } catch (error) {
@@ -83,6 +88,46 @@ export class TagService {
         value: null,
         quality: 'Bad',
         timestamp
+      }
+    }
+  }
+
+  private decodeSubscriptionValue(value: ProtocolSubscriptionValue): TagValue {
+    const definition = this.definitions.find((tag) => tag.id === value.tagId)
+    if (!definition) {
+      return {
+        tagId: value.tagId,
+        value: null,
+        quality: 'Bad',
+        timestamp: value.timestamp
+      }
+    }
+
+    try {
+      return {
+        tagId: definition.id,
+        value: normalizeProtocolValue(definition, value.value),
+        quality: normalizeSubscriptionQuality(value.quality),
+        timestamp: value.timestamp
+      }
+    } catch (error) {
+      this.logger?.write({
+        category: 'error',
+        level: 'warn',
+        message: 'Failed to decode OPC UA Tag value',
+        source: 'main:tag-service',
+        context: {
+          tagId: definition.id,
+          nodeId: value.binding.nodeId,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      })
+
+      return {
+        tagId: definition.id,
+        value: null,
+        quality: 'Bad',
+        timestamp: value.timestamp
       }
     }
   }
@@ -122,4 +167,23 @@ export function decodeTagRawValue(definition: TagDefinition, rawValues: readonly
 
 function roundEngineeringValue(value: number): number {
   return Math.round(value * 1000) / 1000
+}
+
+function normalizeProtocolValue(definition: TagDefinition, value: unknown): TagValueData {
+  if (definition.dataType === 'boolean') {
+    if (typeof value !== 'boolean') {
+      throw new Error(`Tag ${definition.id} expects a boolean protocol value.`)
+    }
+    return value
+  }
+
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Tag ${definition.id} expects a numeric protocol value.`)
+  }
+
+  return roundEngineeringValue(value + definition.offset)
+}
+
+function normalizeSubscriptionQuality(quality: TagQuality): TagQuality {
+  return quality
 }

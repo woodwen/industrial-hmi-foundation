@@ -1,4 +1,5 @@
 export { PollingScheduler } from './PollingScheduler'
+export { TagAcquisitionCoordinator, type TagAcquisitionMetrics } from './TagAcquisitionCoordinator'
 export { TagCache, type TagCacheListener } from './TagCache'
 export { TagService, decodeTagRawValue } from './TagService'
 export { buildScanGroups, type ScanGroup } from './scan-groups'

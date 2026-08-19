@@ -20,6 +20,7 @@ import type { DeviceManager, DeviceOperationGate } from '../device'
 import { DeviceOperationBusyError } from '../device'
 import { createPointValue, encodeWritablePoint } from '../device/DeviceManager'
 import type { Logger } from '../logging/logger'
+import { createProtocolBinding } from '../protocol/bindings'
 import { createDeviceError, DEVICE_ERROR_CODES } from '../protocol/errors'
 import type { IProtocolAdapter, ProtocolReadResult } from '../protocol/types'
 import type { AuditService } from '../audit'
@@ -40,7 +41,8 @@ interface CommandDefinition {
 }
 
 export interface CommandServiceDependencies {
-  adapter: IProtocolAdapter
+  adapter?: IProtocolAdapter
+  adapterProvider?: () => IProtocolAdapter
   deviceManager: DeviceManager
   operationGate: DeviceOperationGate
   logger: Logger
@@ -208,7 +210,8 @@ export class CommandService {
     const rawValues = encodeWritablePoint(targetPoint, value)
 
     try {
-      await this.dependencies.adapter.write({
+      await this.getAdapter().write({
+        binding: this.createBinding(definition.targetPointId, Math.min(definition.timeoutMs, 2000)),
         area: targetPoint.area,
         address: targetPoint.pduAddress,
         values: rawValues,
@@ -448,7 +451,8 @@ export class CommandService {
 
     while (this.now() <= deadline) {
       try {
-        const readBack = await this.dependencies.adapter.read({
+        const readBack = await this.getAdapter().read({
+          binding: this.createBinding(definition.feedbackPointId ?? definition.targetPointId, Math.min(1000, Math.max(1, deadline - this.now()))),
           area: verificationPoint.area,
           address: verificationPoint.pduAddress,
           quantity: verificationPoint.quantity,
@@ -484,7 +488,8 @@ export class CommandService {
   }
 
   private async readPoint(point: ModbusPointDefinition) {
-    const readBack: ProtocolReadResult = await this.dependencies.adapter.read({
+    const readBack: ProtocolReadResult = await this.getAdapter().read({
+      binding: this.createBinding(point.id as ModbusPointId),
       area: point.area,
       address: point.pduAddress,
       quantity: point.quantity
@@ -581,6 +586,27 @@ export class CommandService {
 
   private now(): number {
     return this.dependencies.now?.() ?? Date.now()
+  }
+
+  private getAdapter(): IProtocolAdapter {
+    const adapter = this.dependencies.adapterProvider?.() ?? this.dependencies.adapter
+    if (!adapter) {
+      throw createDeviceError(
+        DEVICE_ERROR_CODES.configurationInvalid,
+        'CommandService requires a protocol adapter.',
+        'main:command-service'
+      )
+    }
+
+    return adapter
+  }
+
+  private createBinding(pointId: ModbusPointId, samplingIntervalMs = 1000) {
+    return createProtocolBinding(
+      this.dependencies.deviceManager.getDeviceStatus().protocol,
+      pointId,
+      samplingIntervalMs
+    )
   }
 }
 

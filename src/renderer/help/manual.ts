@@ -14,7 +14,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: '应用定位',
       paragraphs: [
         'Industrial HMI Foundation 是工业自动化上位机/HMI 的 Electron 基础工程，用于学习、面试展示和后续能力演进。',
-        '当前版本在基础桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程之上，加入模拟 PLC 的 Modbus TCP 手工链路验证、Tag 周期采集、实时监控、设备状态机、受控自动重连和基础 CommandService 控制。'
+        '当前版本在基础桌面壳、进程边界、MVVM、日志、错误处理、帮助文档、更新检查和发布打包流程之上，加入模拟设备的 Modbus TCP / OPC UA 链路验证、Tag 采集、实时监控、设备状态机、受控自动重连、报警、Historian、趋势、Recipe、权限、审计和 CommandService 控制。'
       ],
       bullets: [
         'Renderer 是受限 UI 层，只通过 window.hmi 访问桌面能力。',
@@ -30,8 +30,8 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
         'Dashboard 展示模拟混料设备的温度、液位、压力、转速、运行状态、模式和生产计数。',
         'Device 可以连接独立启动的模拟 PLC，并通过 CommandService 写入目标温度/手动转速、执行启停和阀门控制。',
         'Device Tag Monitor 展示默认 Tag 的 Value、Unit、Quality 和 Timestamp。',
-        'Alarm、Trend、Recipe 和 Tag Management 当前只展示占位结构。',
-        'Settings 当前展示日志与错误上报基础项。'
+        'Alarm、Trend、Recipe 和 Audit 页面用于展示报警生命周期、历史趋势、配方下载和审计记录。',
+        'Settings 可以选择 Modbus TCP 或 OPC UA 通信配置。'
       ]
     },
     {
@@ -71,7 +71,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['当前版本不是生产控制系统，设备通信仅用于连接本项目提供的模拟 PLC 或兼容测试端点。'],
       bullets: [
         '已实现独立 PLC Simulator、Modbus TCP adapter、DeviceManager、设备状态机、自动重连、Tag 模型、TagCache、PollingScheduler、Dashboard 实时监控、Device Tag Monitor、CommandService 和基础写入验证。',
-        '尚未实现报警处理、历史趋势存储、配方执行、权限审计或 OPC UA。',
+        'OPC UA 默认使用本地 anonymous / no-security simulator，不代表生产 OPC UA 安全配置。',
         '后续工业能力应通过独立 OpenSpec change 增量实现。'
       ]
     },
@@ -93,7 +93,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       title: 'Purpose',
       paragraphs: [
         'Industrial HMI Foundation is an Electron foundation for an industrial HMI desktop application.',
-        'This version adds manual Modbus TCP verification, periodic Tag sampling, realtime monitoring, an explicit device state machine, bounded automatic reconnect, and basic CommandService control for a simulated PLC on top of the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
+        'This version adds Modbus TCP / OPC UA verification, Tag acquisition, realtime monitoring, an explicit device state machine, bounded automatic reconnect, alarms, historian, trends, Recipe download, permissions, audit, and CommandService control on top of the desktop shell, process boundaries, MVVM, logging, error handling, help content, update checks, and release packaging.'
       ],
       bullets: [
         'Renderer is a restricted UI layer and accesses desktop capabilities only through window.hmi.',
@@ -109,8 +109,8 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
         'Dashboard shows temperature, level, pressure, RPM, running state, mode, and production count for the simulated mixer.',
         'Device can connect to the independently started simulated PLC, write target temperature/manual RPM, and execute start/stop and valve controls through CommandService.',
         'Device Tag Monitor shows Value, Unit, Quality, and Timestamp for the default Tags.',
-        'Alarm, Trend, Recipe, and Tag Management currently show structural placeholders.',
-        'Settings currently exposes logging and error reporting basics.'
+        'Alarm, Trend, Recipe, and Audit pages show alarm lifecycle, historical trends, Recipe download, and audit records.',
+        'Settings can select Modbus TCP or OPC UA communication configuration.'
       ]
     },
     {
@@ -150,7 +150,7 @@ export const userManualByLanguage: Record<LanguageCode, ManualSection[]> = {
       paragraphs: ['This version is not a production control system. Device communication is intended for the bundled PLC Simulator or a compatible test endpoint.'],
       bullets: [
         'PLC Simulator, Modbus TCP adapter, DeviceManager, explicit device state machine, automatic reconnect, Tag model, TagCache, PollingScheduler, Dashboard realtime monitoring, Device Tag Monitor, CommandService, and basic write verification are implemented.',
-        'Alarm processing, historian storage, recipe execution, permission audit, and OPC UA are not implemented.',
+        'OPC UA defaults to a local anonymous / no-security simulator and is not a production OPC UA security profile.',
         'Future industrial capabilities should be added through separate OpenSpec changes.'
       ]
     },

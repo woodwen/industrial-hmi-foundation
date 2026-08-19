@@ -8,7 +8,8 @@ import type { TagService } from './TagService'
 import { buildScanGroups, type ScanGroup } from './scan-groups'
 
 interface PollingSchedulerDependencies {
-  adapter: IProtocolAdapter
+  adapter?: IProtocolAdapter
+  adapterProvider?: () => IProtocolAdapter
   tagService: TagService
   tagCache: TagCache
   logger: Logger
@@ -23,12 +24,27 @@ interface TimerState {
   generation: number
 }
 
+export interface PollingSchedulerMetrics {
+  requestCount: number
+  requestDurationMs: number
+  skippedTickCount: number
+  failureCount: number
+  lastRequestDurationMs: number
+}
+
 export class PollingScheduler {
   private readonly groups: ScanGroup[]
   private readonly timers = new Map<string, TimerState>()
   private readonly runningDevices = new Set<string>()
   private readonly lastDeviceSkipLoggedAt = new Map<string, number>()
   private readonly deviceGenerations = new Map<string, number>()
+  private readonly metrics: PollingSchedulerMetrics = {
+    requestCount: 0,
+    requestDurationMs: 0,
+    skippedTickCount: 0,
+    failureCount: 0,
+    lastRequestDurationMs: 0
+  }
 
   constructor(private readonly dependencies: PollingSchedulerDependencies) {
     this.groups = buildScanGroups(dependencies.tagService.listTagDefinitions())
@@ -39,6 +55,10 @@ export class PollingScheduler {
       ...group,
       tags: group.tags.map((tag) => ({ ...tag }))
     }))
+  }
+
+  getMetrics(): PollingSchedulerMetrics {
+    return { ...this.metrics }
   }
 
   start(deviceId: string): void {
@@ -127,7 +147,7 @@ export class PollingScheduler {
       return
     }
 
-    if (this.dependencies.adapter.getStatus().connectionStatus !== 'Connected') {
+    if (this.getAdapter().getStatus().connectionStatus !== 'Connected') {
       if (this.isDeviceGenerationCurrent(deviceId, generation)) {
         this.dependencies.tagCache.markDeviceQuality(deviceId, 'Bad')
         this.dependencies.onDeviceCommunicationFailure?.(deviceId, {
@@ -202,16 +222,25 @@ export class PollingScheduler {
         }
       })
       this.stop(group.deviceId)
+      this.metrics.failureCount += 1
       return false
     }
   }
 
   private readGroupThroughGate(group: ScanGroup) {
-    const read = () => this.dependencies.adapter.read({
-      area: group.registerType,
-      address: group.startAddress,
-      quantity: group.quantity
-    })
+    const read = async () => {
+      const startedAt = Date.now()
+      const result = await this.getAdapter().read({
+        area: group.registerType,
+        address: group.startAddress,
+        quantity: group.quantity
+      })
+      const durationMs = Date.now() - startedAt
+      this.metrics.requestCount += 1
+      this.metrics.requestDurationMs += durationMs
+      this.metrics.lastRequestDurationMs = durationMs
+      return result
+    }
 
     return this.dependencies.operationGate
       ? this.dependencies.operationGate.runExclusive(group.deviceId, read)
@@ -249,6 +278,7 @@ export class PollingScheduler {
 
     state.lastSkipLoggedAt = now
     this.lastDeviceSkipLoggedAt.set(deviceId, now)
+    this.metrics.skippedTickCount += 1
     this.dependencies.logger.write({
       category: 'communication',
       level: 'warn',
@@ -259,6 +289,15 @@ export class PollingScheduler {
         scanRate
       }
     })
+  }
+
+  private getAdapter(): IProtocolAdapter {
+    const adapter = this.dependencies.adapterProvider?.() ?? this.dependencies.adapter
+    if (!adapter) {
+      throw new Error('PollingScheduler requires a protocol adapter.')
+    }
+
+    return adapter
   }
 }
 

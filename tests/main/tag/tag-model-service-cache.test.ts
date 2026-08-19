@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { createOpcUaBinding } from '../../../src/main/protocol/bindings'
 import { TagCache, TagService, decodeTagRawValue } from '../../../src/main/tag'
 import { DEFAULT_TAG_DEFINITIONS, TAG_QUALITIES, type TagDefinition, type TagValue } from '../../../src/shared/tag'
 
@@ -105,6 +106,68 @@ describe('TagService', () => {
       category: 'error',
       message: 'Failed to decode Tag value'
     }))
+  })
+
+  it('preserves protocol read quality when decoding group results', () => {
+    const tagService = new TagService(undefined, createLogger())
+    const [value] = tagService.decodeGroupResult({
+      id: 'test',
+      deviceId: 'simulated-mixer-plc',
+      scanRate: 500,
+      registerType: 'inputRegister',
+      startAddress: 0,
+      quantity: 1,
+      tags: [requiredDefinition('currentTemperature')]
+    }, {
+      area: 'inputRegister',
+      address: 0,
+      quantity: 1,
+      values: [255],
+      quality: 'Uncertain'
+    }, '2026-08-18T00:00:00.000Z')
+
+    expect(value).toEqual({
+      tagId: 'currentTemperature',
+      value: 25.5,
+      quality: 'Uncertain',
+      timestamp: '2026-08-18T00:00:00.000Z'
+    })
+  })
+
+  it('decodes OPC UA subscription values with quality and timestamp', () => {
+    const logger = createLogger()
+    const tagService = new TagService(undefined, logger)
+    const timestamp = '2026-08-18T00:00:03.000Z'
+
+    expect(tagService.decodeSubscriptionValues([
+      {
+        tagId: 'currentTemperature',
+        binding: createOpcUaBinding('currentTemperature', 500),
+        value: 25.25,
+        quality: 'Good',
+        timestamp
+      },
+      {
+        tagId: 'deviceRunningStatus',
+        binding: createOpcUaBinding('deviceRunningStatus', 500),
+        value: false,
+        quality: 'Uncertain',
+        timestamp
+      }
+    ])).toEqual([
+      {
+        tagId: 'currentTemperature',
+        value: 25.25,
+        quality: 'Good',
+        timestamp
+      },
+      {
+        tagId: 'deviceRunningStatus',
+        value: false,
+        quality: 'Uncertain',
+        timestamp
+      }
+    ])
   })
 })
 

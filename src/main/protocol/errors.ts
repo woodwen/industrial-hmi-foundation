@@ -5,6 +5,7 @@ export const DEVICE_ERROR_CODES = {
   notConnected: 'DEVICE_NOT_CONNECTED',
   requestTimeout: 'DEVICE_REQUEST_TIMEOUT',
   illegalAddress: 'DEVICE_ILLEGAL_ADDRESS',
+  configurationInvalid: 'DEVICE_CONFIGURATION_INVALID',
   writeRejected: 'DEVICE_WRITE_REJECTED',
   commandRejected: 'COMMAND_REJECTED',
   commandBusy: 'COMMAND_BUSY',

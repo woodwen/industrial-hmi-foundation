@@ -43,6 +43,7 @@ export function createApiClientStub(overrides: Partial<HmiApiClient> = {}): HmiA
     })),
     disconnectDevice: vi.fn<HmiApiClient['disconnectDevice']>().mockResolvedValue(success(defaultDeviceStatus)),
     getDeviceStatus: vi.fn<HmiApiClient['getDeviceStatus']>().mockResolvedValue(success(defaultDeviceStatus)),
+    updateDeviceConfig: vi.fn<HmiApiClient['updateDeviceConfig']>().mockResolvedValue(success(defaultDeviceStatus)),
     subscribeDeviceState: vi.fn<HmiApiClient['subscribeDeviceState']>(() => () => undefined),
     readDeviceRegisters: vi.fn<HmiApiClient['readDeviceRegisters']>().mockResolvedValue(success({
       deviceId: SIMULATED_MIXER_DEVICE_ID,

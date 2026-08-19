@@ -46,6 +46,34 @@ describe('DeviceManager', () => {
     })
   })
 
+  it('updates protocol configuration and replaces the active adapter while disconnected', async () => {
+    const adapters: FakeProtocolAdapter[] = []
+    const manager = new DeviceManager({
+      logger: createLogger(),
+      adapterFactory: () => {
+        const adapter = new FakeProtocolAdapter()
+        adapters.push(adapter)
+        return adapter
+      }
+    })
+
+    await expect(manager.updateDeviceConfig({
+      deviceId: 'simulated-mixer-plc',
+      connection: {
+        protocol: 'opcUa',
+        endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+      }
+    })).resolves.toMatchObject({
+      protocol: 'opcUa',
+      endpoint: {
+        endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+      }
+    })
+
+    expect(adapters).toHaveLength(2)
+    expect(manager.getProtocolAdapter()).toBe(adapters[1])
+  })
+
   it('ignores connect requests that do not match the state machine', async () => {
     const adapter = new FakeProtocolAdapter()
     const manager = new DeviceManager({
@@ -283,6 +311,10 @@ class FakeProtocolAdapter implements IProtocolAdapter {
   writeRequests: ProtocolWriteRequest[] = []
   private readonly reads = new Map<string, ModbusRawValue[]>()
 
+  getCapabilities() {
+    return createModbusCapabilities()
+  }
+
   async connect(config: ProtocolConnectionConfig): Promise<void> {
     this.connectCalls += 1
     if (this.connectFailuresRemaining > 0) {
@@ -337,6 +369,19 @@ class FakeProtocolAdapter implements IProtocolAdapter {
   setRead(area: ProtocolReadRequest['area'], address: number, quantity: number, values: ModbusRawValue[]): void {
     this.reads.set(keyOf(area, address, quantity), values)
   }
+}
+
+function createModbusCapabilities() {
+  return {
+    protocol: 'modbusTcp',
+    preferredAcquisition: 'polling',
+    supportsPolling: true,
+    supportsSubscription: false,
+    supportsBatchRead: true,
+    supportsWrite: true,
+    supportsReadBack: true,
+    requestTimeoutMs: 500
+  } as const
 }
 
 function keyOf(area: ProtocolReadRequest['area'], address: number, quantity: number): string {

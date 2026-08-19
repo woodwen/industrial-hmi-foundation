@@ -107,6 +107,35 @@ describe('Device IPC registration', () => {
     })
   })
 
+  it('validates device protocol config payloads and calls DeviceManager', async () => {
+    const deviceManager = createDeviceManager()
+    const { registerIpcHandlers } = await import('../../src/main/ipc/register')
+
+    registerIpcHandlers(createLogger(), createUpdateManager(), deviceManager)
+    const handler = getHandler(IPC_CHANNELS.devices.updateConfig)
+    const result = await handler({}, {
+      deviceId: 'simulated-mixer-plc',
+      connection: {
+        protocol: 'opcUa',
+        endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+      }
+    }) as HmiResult<DeviceStatus>
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        deviceId: 'simulated-mixer-plc'
+      }
+    })
+    expect(deviceManager.updateDeviceConfig).toHaveBeenCalledWith({
+      deviceId: 'simulated-mixer-plc',
+      connection: {
+        protocol: 'opcUa',
+        endpointUrl: 'opc.tcp://127.0.0.1:4840/industrial-hmi-simulator'
+      }
+    })
+  })
+
   it('does not fall back to DeviceManager writes when CommandService is missing', async () => {
     const { registerIpcHandlers } = await import('../../src/main/ipc/register')
     const deviceManager = createDeviceManager()
@@ -406,6 +435,7 @@ function createDeviceManager(): DeviceManagerApi {
     connectDevice: vi.fn<() => Promise<DeviceStatus>>().mockResolvedValue(status),
     disconnectDevice: vi.fn<() => Promise<DeviceStatus>>().mockResolvedValue(createDeviceStatus()),
     getDeviceStatus: vi.fn<() => DeviceStatus>().mockReturnValue(status),
+    updateDeviceConfig: vi.fn<DeviceManagerApi['updateDeviceConfig']>().mockResolvedValue(createDeviceStatus()),
     subscribeState: vi.fn<DeviceManagerApi['subscribeState']>(() => () => undefined),
     readDeviceRegisters: vi.fn<DeviceManagerApi['readDeviceRegisters']>().mockResolvedValue({
       deviceId: 'simulated-mixer-plc',

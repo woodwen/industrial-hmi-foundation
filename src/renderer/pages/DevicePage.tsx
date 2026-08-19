@@ -73,7 +73,7 @@ export const DevicePage = observer(() => {
           </div>
           <div>
             <dt>{app.t('device.status.protocol')}</dt>
-            <dd>Modbus TCP</dd>
+            <dd>{device.protocolLabel}</dd>
           </div>
           <div>
             <dt>{app.t('device.status.lastSuccess')}</dt>

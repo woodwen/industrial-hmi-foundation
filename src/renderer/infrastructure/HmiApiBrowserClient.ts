@@ -14,6 +14,7 @@ import type {
   CurrentUserSnapshot,
   DeviceCommandRequest,
   DeviceCommandResult,
+  DeviceConfigUpdateRequest,
   DeviceReadRequest,
   DeviceReadResponse,
   DeviceStateListener,
@@ -94,6 +95,10 @@ export class HmiApiBrowserClient implements HmiApiClient {
 
   getDeviceStatus(): Promise<HmiResult<DeviceStatus>> {
     return window.hmi.devices.getStatus()
+  }
+
+  updateDeviceConfig(request: DeviceConfigUpdateRequest): Promise<HmiResult<DeviceStatus>> {
+    return window.hmi.devices.updateConfig(request)
   }
 
   subscribeDeviceState(listener: DeviceStateListener): Unsubscribe {

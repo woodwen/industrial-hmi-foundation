@@ -16,6 +16,7 @@ import type {
   CurrentUserSnapshot,
   DeviceCommandRequest,
   DeviceCommandResult,
+  DeviceConfigUpdateRequest,
   DeviceReadResponse,
   DeviceReadRequest,
   DeviceStateChangedEvent,
@@ -59,6 +60,7 @@ import {
   parseCreateFirstAdminRequest,
   parseCreateUserRequest,
   parseDeviceCommandRequest,
+  parseDeviceConfigUpdateRequest,
   parseErrorReportInput,
   parseHistoricalTrendQuery,
   parseLoginRequest,
@@ -87,6 +89,7 @@ export interface DeviceManagerApi {
   connectDevice(): Promise<DeviceStatus>
   disconnectDevice(): Promise<DeviceStatus>
   getDeviceStatus(): DeviceStatus
+  updateDeviceConfig(request: DeviceConfigUpdateRequest): Promise<DeviceStatus>
   subscribeState(listener: (event: DeviceStateChangedEvent) => void): () => void
   readDeviceRegisters(request: DeviceReadRequest): Promise<DeviceReadResponse>
   writeDeviceRegisters(request: DeviceWriteRequest): Promise<DeviceWriteResponse>
@@ -237,6 +240,10 @@ export function registerIpcHandlers(
   handleIpc<DeviceStatus>(IPC_CHANNELS.devices.disconnect, logger, () => deviceManager.disconnectDevice())
 
   handleIpc<DeviceStatus>(IPC_CHANNELS.devices.getStatus, logger, () => deviceManager.getDeviceStatus())
+
+  handleIpc<DeviceStatus>(IPC_CHANNELS.devices.updateConfig, logger, (payload) => (
+    deviceManager.updateDeviceConfig(parseDeviceConfigUpdateRequest(payload, `ipc:${IPC_CHANNELS.devices.updateConfig}`))
+  ))
 
   handleIpc<void>(IPC_CHANNELS.devices.subscribeState, logger, (_payload, event) => {
     deviceStateSubscription.addSubscriber(event.sender)

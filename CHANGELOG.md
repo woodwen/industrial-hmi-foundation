@@ -13,6 +13,7 @@
 - 新增设备状态机、自动重连、Tag Quality 降级/恢复、CommandService 设备控制、写入验证和 Simulator 故障注入能力。
 - 新增工业报警、SQLite 历史数据、实时趋势和历史趋势能力，支持报警确认、恢复和重启后历史查询。
 - 新增本地用户权限、工业配方管理、Recipe 下载结果明细和关键操作 Audit Log 持久化能力。
+- 新增 OPC UA 协议适配器、OPC UA Simulator、协议切换配置、subscription 采集链路、性能 profile 和长期运行 smoke profile。
 
 ### Changed
 
@@ -23,7 +24,8 @@
 
 - 补强 GitHub Release workflow：release title 使用 `v<version>`，发布后在既有 `dev` 分支准备下一开发版本。
 - 统一项目 Yarn 工具链，并修复 `better-sqlite3` 在 Electron dev/test 入口之间的 native ABI 重编译流程。
+- 固定 `node-opcua` 传递依赖 `hexy` 的 CommonJS 兼容版本，避免 Electron 主进程加载 OPC UA runtime 时触发 ESM require 错误。
 
 ### Notes
 
-- 当前版本支持连接本项目模拟 PLC 验证 Modbus TCP 链路、实时监控、报警、历史数据和趋势分析；不包含真实生产设备采集、OPC UA、配方执行或权限系统。
+- 当前版本支持连接本项目模拟 PLC 验证 Modbus TCP / OPC UA 链路、实时监控、报警、历史数据、趋势分析、配方下载、权限和审计；所有能力仍限定为学习和模拟项目，不代表真实生产现场 Safety System。
