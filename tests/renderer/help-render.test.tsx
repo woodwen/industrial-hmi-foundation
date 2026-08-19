@@ -27,6 +27,8 @@ describe('Renderer help views', () => {
     expect(markup).toContain('使用说明书')
     expect(markup).toContain('应用定位')
     expect(markup).toContain('已实现独立 PLC Simulator')
+    expect(markup).toContain('Modbus RTU 当前未实现 runtime')
+    expect(markup).toContain('Audit Log 记录 Start、Stop')
   })
 
   it('renders the English user manual after language switch', () => {
@@ -39,6 +41,8 @@ describe('Renderer help views', () => {
     expect(markup).toContain('User Manual')
     expect(markup).toContain('Current Scope')
     expect(markup).toContain('PLC Simulator, Modbus TCP adapter')
+    expect(markup).toContain('Modbus RTU runtime is not implemented')
+    expect(markup).toContain('Permissions distinguish Operator, Engineer, and Admin')
   })
 
   it('renders bundled changelog entries as version update notes', () => {
@@ -50,6 +54,7 @@ describe('Renderer help views', () => {
     expect(markup).toContain('版本更新说明')
     expect(markup).toContain('当前版本 0.1.1')
     expect(markup).toContain('Industrial HMI Foundation 的产品可交付基础')
+    expect(markup).toContain('新增跨平台应用图标资产')
   })
 })
 

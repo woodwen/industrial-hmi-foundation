@@ -73,8 +73,10 @@
       "node_modules/better-sqlite3/**"
     ],
     "directories": {
+      "buildResources": "build",
       "output": "release"
     },
+    "icon": "build/icon.png",
     "files": [
       "out/**/*",
       "package.json"
@@ -93,19 +95,22 @@
         "zip"
       ],
       "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
       "identity": null
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Development",
-      "executableName": "industrial-hmi-foundation"
+      "executableName": "industrial-hmi-foundation",
+      "icon": "build/icon.png"
     },
     "toolsets": {
       "appimage": "1.0.3"

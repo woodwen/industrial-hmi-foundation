@@ -2,13 +2,17 @@
 
 Industrial HMI Foundation 是一个基于 Electron 的工业自动化上位机 / HMI 学习、模拟和工程实践项目。当前业务场景是自动化恒温混料设备监控与控制系统，设备侧由本项目提供的 Simulator 模拟。
 
-本项目不代表真实生产现场 Safety System，不包含安全 PLC、硬件联锁、SIL/PL 认证、真实 OPC UA 证书策略或生产控制授权模型。所有通信和控制能力仅用于学习、模拟、测试和面试演示。
+本项目不代表真实生产现场 Safety System，不包含 Safety PLC、安全继电器、硬件联锁、急停、SIL/PL 认证、真实 OPC UA 证书策略、生产控制授权模型或现场网络安全合规能力。所有通信和控制能力仅用于学习、模拟、测试和面试演示。
+
+应用图标使用工业 HMI 面板、趋势图和设备控制元素作为品牌视觉，项目内打包资产位于 `build/icon.png`、`build/icon.icns` 和 `build/icon.ico`。
+
+详细项目说明书见 [docs/project-manual.md](docs/project-manual.md)。该文档逐条回答 PLC/设备通信、Modbus TCP/RTU、OPC UA、周期采集、1000 点位、断线重连、UI 隔离、实时刷新、报警、历史趋势、PLC 控制、防重复命令、通信线程隔离、异常超时重连、配方、Tag 管理、权限和操作日志等问题。
 
 ## 1. 项目介绍
 
 项目覆盖桌面 HMI 的典型工程边界：Electron Main / Preload / Renderer 分层、React + MobX MVVM、受控 IPC、工业通信抽象、Tag 实时数据、设备状态机、报警、趋势、Historian、Recipe、权限和审计。
 
-默认设备是 `simulated-mixer-plc`，可通过 Modbus TCP Simulator 或 OPC UA Simulator 连接。
+默认设备是 `simulated-mixer-plc`，可通过 Modbus TCP Simulator 或 OPC UA Simulator 连接。Modbus TCP 是默认协议，OPC UA 是可选协议。Modbus RTU 是真实工业串口协议形态，但当前项目未实现 RTU runtime。
 
 ## 2. Architecture
 
@@ -30,7 +34,7 @@ Renderer ViewModel
 React View
 ```
 
-Renderer 不直接访问 TCP、Modbus、OPC UA、SQLite、Node.js 或 Main Process adapter。通信能力只在 Main Process 的协议层和业务服务中运行。
+Renderer 不直接访问 TCP、Modbus、OPC UA、SQLite、Node.js 或 Main Process adapter。通信能力只在 Main Process 的协议层和业务服务中运行。Preload 只暴露受控 typed `window.hmi` API，不暴露 raw `ipcRenderer`。
 
 ## 3. Technology Stack
 
@@ -44,18 +48,35 @@ Renderer 不直接访问 TCP、Modbus、OPC UA、SQLite、Node.js 或 Main Proce
 - OPC UA / node-opcua
 - Vitest
 - OpenSpec
+- Yarn 1.x
 
 ## 4. 工业通信架构
 
 协议接入通过 `IProtocolAdapter`：
 
 - `ModbusAdapter`：默认协议，适合周期 polling 和连续地址 batching。
-- `OpcUaAdapter`：可选协议，优先使用 subscription / monitored item。
+- `OpcUaAdapter`：可选协议，优先使用 subscription / monitored item notification。
 - `ProtocolAdapterCapabilities`：描述协议支持 polling、subscription、batch read、write、read-back、timeout 和订阅规模。
 
-`DeviceManager`、`TagService`、`CommandService`、Dashboard 和 ViewModel 不直接依赖具体协议库。
+`DeviceManager`、`TagService`、`CommandService`、Dashboard 和 ViewModel 不直接依赖具体协议库。Dashboard/ViewModel 只消费 Tag、设备状态和命令结果，不根据协议类型分支处理数据。
 
-## 5. Modbus Mapping
+## 5. 模拟协议与真实协议
+
+| 本项目能力 | 模拟对象 | 对应真实协议/设备 | 当前边界 |
+| --- | --- | --- | --- |
+| Modbus TCP Simulator | 本地 TCP 模拟 PLC | Modbus TCP PLC、远程 IO、工业网关 | 已实现，默认协议，使用 polling 和地址批量读取 |
+| OPC UA Simulator | 本地 OPC UA Server | OPC UA Server、PLC、SCADA、工业网关 | 已实现，可选协议，默认 subscription |
+| Modbus RTU | 当前未实现 runtime | RS-485 / RS-232 串口 Modbus RTU 设备 | 仅说明协议概念和未来接入方式 |
+
+OPC UA Simulator 默认 endpoint：
+
+```text
+opc.tcp://127.0.0.1:4840/industrial-hmi-simulator
+```
+
+本地 OPC UA Simulator 默认 anonymous / no-security，仅用于学习和本地测试，不代表生产安全配置。
+
+## 6. Modbus Mapping
 
 Modbus 使用 human reference address 和 PDU zero-based address：
 
@@ -66,7 +87,7 @@ Modbus 使用 human reference address 和 PDU zero-based address：
 
 默认点位包括 Temperature、Level、Pressure、RPM、Production Count、Running feedback、Auto Mode、Target Temperature 和 Manual RPM Setpoint。
 
-## 6. Tag Model
+## 7. Tag Model
 
 `TagDefinition` 描述逻辑 Tag：`id`、`name`、`deviceId`、地址、数据类型、scale、offset、unit、writable、scanRate 和显示角色。
 
@@ -79,7 +100,7 @@ Modbus 使用 human reference address 和 PDU zero-based address：
 
 断线、超时或采集失败时可以保留 last value，但必须把 quality 降级，不能让 UI 把旧值当作正常实时值。
 
-## 7. Polling Architecture
+## 8. Polling Architecture
 
 Modbus 默认走 `PollingScheduler`：
 
@@ -90,7 +111,9 @@ Modbus 默认走 `PollingScheduler`：
 
 OPC UA 默认不强行模拟成 Modbus polling，而是由 `TagAcquisitionCoordinator` 根据 adapter capability 选择 subscription。
 
-## 8. Device State Machine
+100、500、1000 Tag profile 可通过性能脚本运行。README 不记录固定性能数字，真实结果以 `reports/performance/` 下脚本生成的 JSON / Markdown 报告为准。
+
+## 9. Device State Machine
 
 设备状态：
 
@@ -100,9 +123,9 @@ OPC UA 默认不强行模拟成 Modbus polling，而是由 `TagAcquisitionCoordi
 - `Reconnecting`
 - `Fault`
 
-通信失败从 `Connected` 进入 `Reconnecting`，使用受控 backoff；手动断开进入 `Disconnected`；不可恢复错误进入 `Fault`。
+通信失败从 `Connected` 进入 `Reconnecting`，使用受控 backoff；手动断开进入 `Disconnected`；不可恢复错误进入 `Fault`。断线后相关 Tag quality 会降级，恢复采集后才重新显示 `Good`。
 
-## 9. Alarm Lifecycle
+## 10. Alarm Lifecycle
 
 报警是 Main Process domain，不是 UI toast。生命周期区分：
 
@@ -113,13 +136,13 @@ OPC UA 默认不强行模拟成 Modbus polling，而是由 `TagAcquisitionCoordi
 
 `Acknowledged != Recovered`。报警规则支持 threshold、delay、debounce、triggerValue、timestamp 和 non-Good quality 行为。
 
-## 10. Historian
+## 11. Historian
 
 Historian 使用 SQLite，通过 repository/service 隔离 SQL。历史采集支持 first sample、fixed interval、deadband 和 quality change，避免把每次 polling 全量写入数据库。
 
-实时趋势使用 bounded ring buffer；历史趋势从 SQLite 查询并对大范围数据做聚合/上限控制。
+实时趋势使用 bounded ring buffer；历史趋势从 SQLite 查询并对大范围数据做聚合和上限控制。
 
-## 11. Recipe
+## 12. Recipe
 
 Recipe 是工业业务对象，不只是表单。下载流程：
 
@@ -128,24 +151,6 @@ Recipe -> Validate -> Generate Commands -> CommandService -> ProtocolAdapter -> 
 ```
 
 部分写入失败不能返回整体成功；关键控制操作进入 Audit。
-
-## 12. OPC UA
-
-默认 OPC UA Simulator endpoint：
-
-```text
-opc.tcp://127.0.0.1:4840/industrial-hmi-simulator
-```
-
-默认变量：
-
-- `Temperature`
-- `Level`
-- `RPM`
-- `Running`
-- `Setpoint`
-
-扩展变量还包括 Pressure、ProductionCount、MotorRunning、InletValve、OutletValve、AutoMode 和 ManualRpmSetpoint。OPC UA 本地 simulator 使用 anonymous / no-security，仅用于学习和本地测试，不是生产安全配置。
 
 ## 13. 如何运行 Simulator
 
@@ -167,6 +172,12 @@ yarn simulator:start
 yarn simulator:opcua:start
 ```
 
+启动应用开发环境：
+
+```bash
+yarn dev
+```
+
 运行大规模 Tag profile：
 
 ```bash
@@ -185,13 +196,13 @@ yarn longrun:smoke
 yarn longrun:smoke --durationMs 30000
 ```
 
-## 14. Demo步骤
+## 14. Demo 步骤
 
 Demo 1：设备启动及实时监控
 
 1. 启动 simulator。
 2. 打开 HMI，进入 Device，Connect。
-3. 点击 Start，观察 Dashboard/Device Tag Monitor 的 Temperature、Level、RPM、Running。
+3. 点击 Start，观察 Dashboard / Device Tag Monitor 的 Temperature、Level、RPM、Running。
 
 Demo 2：PLC 断线 -> Bad Quality -> 自动重连
 
@@ -238,18 +249,28 @@ yarn build
 OpenSpec 检查：
 
 ```bash
-openspec validate add-opcua-production-hardening --strict
+openspec validate refresh-app-icon-project-docs --strict
 openspec validate --all --strict
 git diff --check
 ```
 
-性能报告输出到 `reports/performance/`，该目录的原始报告默认不纳入 git。README 不记录固定性能数字；以脚本生成的 JSON / Markdown 报告为准。
+性能报告输出到 `reports/performance/`，该目录的原始报告默认不纳入 git。long-run smoke profile 默认为 5-10 分钟，extended profile 默认为 30-120 分钟手工验收。
 
-## 16. Known Limitations
+## 16. 文档入口
+
+- [项目说明书](docs/project-manual.md)：详细解释开发目的、解决的问题、协议映射和关键工程问答。
+- 应用内 `帮助 -> 使用说明书`：离线操作说明。
+- 应用内 `帮助 -> 版本更新说明`：从内置 `CHANGELOG.md` 展示版本变化。
+- [docs/modbus-plc-simulator.md](docs/modbus-plc-simulator.md)：Modbus Simulator 说明。
+- [docs/opcua-dependency-review.md](docs/opcua-dependency-review.md)：OPC UA 依赖评审。
+
+## 17. Known Limitations
 
 - 本项目是工业自动化学习及模拟项目，不代表真实生产现场 Safety System。
 - OPC UA 默认 anonymous / no-security，不适用于生产环境。
+- Modbus RTU 当前未实现 runtime。
 - Simulator 不代表任何真实 PLC vendor profile。
 - 性能脚本是本地 profile，不是生产 benchmark。
-- Long-run smoke 未发现问题不等于证明不存在泄漏；30-120 分钟 extended profile 需要手工运行和记录。
+- Long-run smoke 未发现问题不等于证明不存在泄漏。
 - UI 配置目前面向单个默认 simulated mixer device。
+- 真实设备接入需要额外的现场网络、安全、协议、权限、验收和异常工况验证。

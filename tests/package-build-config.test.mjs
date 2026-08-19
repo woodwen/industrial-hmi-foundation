@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
@@ -11,6 +11,8 @@ describe('package build config', () => {
     expect(packageJson.build.appId).toBe('com.industrialhmi.foundation')
     expect(packageJson.build.productName).toBe('Industrial HMI Foundation')
     expect(packageJson.build.artifactName).toBe('Industrial-HMI-Foundation-${version}-${arch}.${ext}')
+    expect(packageJson.build.icon).toBe('build/icon.png')
+    expect(packageJson.build.directories.buildResources).toBe('build')
     expect(packageJson.build.directories.output).toBe('release')
     expect(packageJson.build.linux.executableName).toBe('industrial-hmi-foundation')
     expect(packageJson.build.linux.executableName).toMatch(appImageSafePathPattern)
@@ -30,6 +32,9 @@ describe('package build config', () => {
   })
 
   it('builds and uploads artifacts needed by update checks', () => {
+    expect(packageJson.build.mac.icon).toBe('build/icon.icns')
+    expect(packageJson.build.win.icon).toBe('build/icon.ico')
+    expect(packageJson.build.linux.icon).toBe('build/icon.png')
     expect(packageJson.build.mac.target).toEqual(expect.arrayContaining(['dmg', 'zip']))
     expect(releaseWorkflow).toContain('branches:\n      - master')
     expect(releaseWorkflow).toContain('yarn install --frozen-lockfile')
@@ -43,6 +48,19 @@ describe('package build config', () => {
     expect(releaseWorkflow).toContain('release/*.blockmap')
     expect(releaseWorkflow).toContain('--title "$RELEASE_TAG"')
     expect(releaseWorkflow).not.toContain('npm publish')
+  })
+
+  it('ships project icon assets for every desktop platform', () => {
+    const pngPath = new URL('../build/icon.png', import.meta.url)
+    const icnsPath = new URL('../build/icon.icns', import.meta.url)
+    const icoPath = new URL('../build/icon.ico', import.meta.url)
+
+    expect(existsSync(pngPath)).toBe(true)
+    expect(existsSync(icnsPath)).toBe(true)
+    expect(existsSync(icoPath)).toBe(true)
+    expect(readFileSync(pngPath).subarray(1, 4).toString('ascii')).toBe('PNG')
+    expect(readFileSync(icnsPath).subarray(0, 4).toString('ascii')).toBe('icns')
+    expect(readFileSync(icoPath).readUInt16LE(2)).toBe(1)
   })
 
   it('unpacks the SQLite native module from asar packages', () => {

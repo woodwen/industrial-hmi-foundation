@@ -14,17 +14,21 @@
 - 新增工业报警、SQLite 历史数据、实时趋势和历史趋势能力，支持报警确认、恢复和重启后历史查询。
 - 新增本地用户权限、工业配方管理、Recipe 下载结果明细和关键操作 Audit Log 持久化能力。
 - 新增 OPC UA 协议适配器、OPC UA Simulator、协议切换配置、subscription 采集链路、性能 profile 和长期运行 smoke profile。
+- 新增跨平台应用图标资产，使用工业 HMI 面板、趋势图和设备控制元素作为桌面应用品牌视觉。
+- 新增 `docs/project-manual.md` 项目说明书，详细说明开发目的、解决的问题、模拟协议与真实协议关系，并逐条回答 PLC 通信、采集、报警、趋势、配方、权限和审计问题。
 
 ### Changed
 
 - 将应用默认语言明确为中文，并为英文演示保留可切换文案和中文回退。
 - 明确 release version 以 `package.json` 的稳定 SemVer 为唯一来源，并要求 changelog 顶部版本与 package 版本保持一致。
+- 更新 README 和应用内使用说明书，使它们作为项目入口和离线操作说明，并链接到详细项目说明书。
 
 ### Build
 
 - 补强 GitHub Release workflow：release title 使用 `v<version>`，发布后在既有 `dev` 分支准备下一开发版本。
 - 统一项目 Yarn 工具链，并修复 `better-sqlite3` 在 Electron dev/test 入口之间的 native ABI 重编译流程。
 - 固定 `node-opcua` 传递依赖 `hexy` 的 CommonJS 兼容版本，避免 Electron 主进程加载 OPC UA runtime 时触发 ESM require 错误。
+- Electron Builder 显式引用 `build/icon.png`、`build/icon.icns` 和 `build/icon.ico`，避免桌面安装包使用默认 Electron 图标。
 
 ### Notes
 
